@@ -7,7 +7,7 @@
 <title>Spieltag-Generator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Kaushan+Script&display=swap" rel="stylesheet">
 <script src="vereine.js"></script>
 <style>
 :root{
@@ -49,6 +49,27 @@ input[type=date],input[type=time]{color-scheme:dark}
 .seg button.on{background:var(--accent);color:#fff}
 .seg.big button{min-height:48px;font-size:14.5px}
 .seg + .seg{margin-top:8px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:130px;padding:16px;
+  border:2px dashed var(--line);border-radius:12px;background:var(--panel2);color:var(--muted);cursor:pointer;text-align:center;transition:.15s}
+.drop b{color:var(--text);font-size:16px;font-weight:800}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(47,128,237,.12);color:var(--accent)}
+.drop.has{border-style:solid;border-color:var(--accent)}
+.drop input{display:none}
+.dropOverlay{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;gap:10px;align-items:center;justify-content:center;
+  background:rgba(10,14,18,.85);border:4px dashed var(--accent);color:#fff;font-size:26px;font-weight:900;pointer-events:none;text-align:center;padding:20px}
+.dropOverlay span{font-size:15px;font-weight:600;color:var(--muted)}
+body.dragging .dropOverlay{display:flex}
+.lnHead,.lnRow{display:grid;grid-template-columns:70px 1fr 40px;gap:8px;align-items:center}
+.lnHead{margin-top:12px;font-size:12px;font-weight:700;color:var(--muted)}
+.lnRow{margin-top:8px}
+.lnRow input[type=text]{height:42px}
+.lnRow input[data-k=nr]{text-align:center;font-weight:800}
+.lnRow .x{height:42px;padding:0;width:40px;color:var(--muted)}
+.linkbtn{display:inline-block;margin-top:8px;padding:4px 0;border:0;background:none;color:var(--accent-h);font-size:13px;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.chips{display:flex;gap:8px;margin-top:8px}
+.chips button{flex:1;height:38px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);
+  font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer}
+.chips button.on{border-color:var(--accent);background:rgba(47,128,237,.22);color:#fff}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 18px;border-radius:10px;
   border:1px solid var(--line);background:var(--panel2);font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
 .btn:hover{border-color:var(--muted)}
@@ -69,7 +90,7 @@ input[type=date],input[type=time]{color-scheme:dark}
 .newClub{border:1px dashed var(--accent)}
 .newClub input[type=text]{background:var(--panel2)}
 .ncLogo{display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap}
-.ncLogo img{width:64px;height:64px;object-fit:contain;background:repeating-conic-gradient(#2a3540 0 25%,#202a34 0 50%) 0 0/14px 14px;border-radius:8px}
+.ncLogo img{height:64px;width:auto;max-width:130px;object-fit:contain;padding:4px;background:repeating-conic-gradient(#2a3540 0 25%,#202a34 0 50%) 0 0/14px 14px;border-radius:8px}
 .game{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}
 .game input[type=text],.game input[type=number],.game select{background-color:var(--panel)}
 .game .seg{background:var(--panel)}
@@ -121,7 +142,7 @@ details.card[open] summary::after{content:" –"}
 <main class="wrap">
   <section class="preview">
     <div class="canvasBox" id="canvasBox"><canvas id="cv" width="1080" height="1080" aria-label="Vorschau"></canvas></div>
-    <p class="hint">Foto mit Maus oder Finger in der Vorschau verschieben.<br>Zoomen: Regler, Mausrad oder mit zwei Fingern. Am PC kann man ein Foto auch einfach auf die Vorschau ziehen.</p>
+    <p class="hint">Foto mit Maus oder Finger in der Vorschau frei verschieben (oder mit den Reglern).<br>Zoomen: Regler, Mausrad oder mit zwei Fingern. Am PC ein Foto einfach irgendwo auf die Seite ziehen.</p>
   </section>
 
   <section class="form">
@@ -132,10 +153,12 @@ details.card[open] summary::after{content:" –"}
         <button type="button" data-v="post">Post<br><small>Spieltag</small></button>
         <button type="button" data-v="story">Story<br><small>Spieltag</small></button>
         <button type="button" data-v="ergebnis">Story<br><small>Ergebnisse</small></button>
+        <button type="button" data-v="aufstellung">Story<br><small>Aufstellung</small></button>
       </div>
       <div id="teamSel">
         <span class="lbl">Mannschaft</span>
         <div class="seg" id="ownSeg"></div>
+        <button type="button" class="linkbtn" data-logo="own">Unser Wappen ändern</button>
         <div class="seg" id="ha">
           <button type="button" data-v="heim">Heimspiel</button>
           <button type="button" data-v="aus">Auswärtsspiel</button>
@@ -144,6 +167,28 @@ details.card[open] summary::after{content:" –"}
     </div>
 
     <!-- Neuer Gegner -->
+    <!-- Wappen ändern -->
+    <div class="card newClub" id="logoEdit" hidden>
+      <h2>Wappen ändern</h2>
+      <label class="lbl" for="leClub" style="margin-top:0">Verein</label>
+      <select id="leClub"></select>
+      <div class="ncLogo">
+        <span class="muted">Aktuell:</span><img id="leCur" alt="" hidden><span class="muted" id="leCurNone" hidden>kein Wappen</span>
+      </div>
+      <div class="ncLogo">
+        <label class="btn small">Neues Wappen wählen<input type="file" id="leFile" accept="image/*"></label>
+        <label class="btn small">+ 2. Wappen<input type="file" id="leFile2" accept="image/*"></label>
+        <img id="lePrev" alt="" hidden>
+      </div>
+      <p class="info" id="leHint" style="margin-top:8px">Bild wählen oder hierher ziehen. Wird automatisch freigestellt und zugeschnitten. Bei Spielgemeinschaften zusätzlich das 2. Wappen wählen.</p>
+      <div class="btnrow">
+        <button type="button" class="btn primary small" id="leOk">Speichern</button>
+        <button type="button" class="btn small" id="leReset">Original wiederherstellen</button>
+        <button type="button" class="btn small" id="leCancel">Schließen</button>
+      </div>
+      <p class="info">Gilt nur für diesen Browser auf diesem Gerät. Für alle dauerhaft: Wappen im Ordner <b>wappen</b> ersetzen und <b>Vereinsliste-aktualisieren.bat</b> starten.</p>
+    </div>
+
     <div class="card newClub" id="newClub" hidden>
       <h2>Neuer Gegner</h2>
       <div class="row2" style="margin-top:0">
@@ -152,8 +197,11 @@ details.card[open] summary::after{content:" –"}
       </div>
       <div class="ncLogo">
         <label class="btn small">Wappen wählen<input type="file" id="ncFile" accept="image/*"></label>
+        <label class="btn small">+ 2. Wappen<input type="file" id="ncFile2" accept="image/*"></label>
         <img id="ncPrev" alt="" hidden>
-        <span class="muted" id="ncHint">PNG mit transparentem Hintergrund ist ideal.</span>
+      </div>
+      <p class="info" id="ncHint" style="margin-top:8px">PNG mit transparentem Hintergrund ist ideal. Bei Spielgemeinschaften zusätzlich das 2. Wappen wählen – beide werden automatisch zusammengesetzt.</p>
+      <div>
       </div>
       <label class="check"><input type="checkbox" id="ncKeep" checked> Auf diesem Gerät merken</label>
       <div class="btnrow">
@@ -167,6 +215,7 @@ details.card[open] summary::after{content:" –"}
       <div class="card">
         <h2>Gegner</h2>
         <select id="opp" aria-label="Gegner"></select>
+        <button type="button" class="linkbtn" data-logo="opp">Wappen des Gegners ändern oder ergänzen</button>
         <div class="row2">
           <div><label class="lbl" for="nameOwn">Name unsere Mannschaft</label><input type="text" id="nameOwn"></div>
           <div><label class="lbl" for="nameOpp">Name Gegner</label><input type="text" id="nameOpp" placeholder="z. B. FV Waldburg II"></div>
@@ -180,6 +229,11 @@ details.card[open] summary::after{content:" –"}
         </div>
         <label class="lbl" for="ort">Ort</label>
         <input type="text" id="ort" placeholder="wird automatisch vorgeschlagen">
+        <div class="chips" id="ortTyp">
+          <button type="button" data-v="Stadion">Stadion</button>
+          <button type="button" data-v="Sportplatz">Sportplatz</button>
+          <button type="button" data-v="Kunstrasen">Kunstrasen</button>
+        </div>
         <label class="lbl" for="title">Titel</label>
         <input type="text" id="title" placeholder="SPIELTAG">
       </div>
@@ -198,15 +252,44 @@ details.card[open] summary::after{content:" –"}
       </div>
     </div>
 
+    <!-- Aufstellung -->
+    <div id="lineupForm" hidden>
+      <div class="card">
+        <h2>Aufstellung</h2>
+        <div class="row2" style="margin-top:0">
+          <div><label class="lbl" for="aTitle">Titel</label><input type="text" id="aTitle" placeholder="STARTAUFSTELLUNG"></div>
+          <div><label class="lbl" for="aFooter">Schlusszeile</label><input type="text" id="aFooter" placeholder="Auf geht's SVA"></div>
+        </div>
+        <p class="info" id="kaderInfo"></p>
+        <div class="lnHead"><span>Nr.</span><span>Spieler</span><span></span></div>
+        <div id="lineup"></div>
+        <datalist id="kaderList"></datalist>
+        <div class="btnrow">
+          <button type="button" class="btn small" id="lnAdd">+ Spieler</button>
+          <button type="button" class="btn small" id="lnSort">Nach Nummer sortieren</button>
+          <button type="button" class="btn small danger" id="lnClear">Alle leeren</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Foto -->
     <div class="card">
       <h2>Hintergrundfoto</h2>
-      <div class="filerow">
-        <label class="btn primary">Foto wählen<input type="file" id="bgFile" accept="image/*"></label>
-        <span class="muted" id="bgName">noch kein Foto</span>
-      </div>
+      <label class="drop" id="bgDrop">
+        <input type="file" id="bgFile" accept="image/*">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/>
+        </svg>
+        <b id="bgDropTitle">Foto hierher ziehen</b>
+        <span class="muted" id="bgName">oder hier klicken / tippen zum Auswählen</span>
+      </label>
       <label class="lbl" for="zoom">Zoom</label>
-      <div class="range"><input type="range" id="zoom" min="1" max="4" step="0.01" value="1"><output id="zoomOut">100 %</output></div>
+      <div class="range"><input type="range" id="zoom" min="0.5" max="4" step="0.01" value="1"><output id="zoomOut">100 %</output></div>
+      <label class="lbl" for="posX">Verschieben links ↔ rechts</label>
+      <div class="range"><input type="range" id="posX" min="-1" max="1" step="0.001" value="0"><output id="posXOut">Mitte</output></div>
+      <label class="lbl" for="posY">Verschieben oben ↕ unten</label>
+      <div class="range"><input type="range" id="posY" min="-1" max="1" step="0.001" value="0"><output id="posYOut">Mitte</output></div>
+      <div class="btnrow" style="margin-top:10px"><button type="button" class="btn small" id="bgReset">Foto zentrieren</button></div>
       <label class="lbl" for="dark">Abdunkeln</label>
       <div class="range"><input type="range" id="dark" min="0" max="1" step="0.01" value="0.55"><output id="darkOut">55 %</output></div>
       <label class="check"><input type="checkbox" id="diag" checked> Diagonaler Schleier (wie in der Vorlage)</label>
@@ -218,7 +301,9 @@ details.card[open] summary::after{content:" –"}
     </div>
 
     <details class="card" style="margin-top:14px">
-      <summary>Gegner auf diesem Gerät</summary>
+      <summary>Vereine &amp; Wappen auf diesem Gerät</summary>
+      <div class="btnrow" style="margin-top:12px"><button type="button" class="btn small" data-logo="any">Wappen eines Vereins ändern …</button></div>
+      <ul class="clubList" id="ovrList"></ul>
       <ul class="clubList" id="clubList"></ul>
       <p class="info" id="clubEmpty">Noch keine eigenen Gegner gespeichert. Im Gegner-Feld <b>„+ Neuen Gegner anlegen“</b> wählen, um einen Verein mit Wappen hinzuzufügen.</p>
       <p class="info">Hier gespeicherte Gegner gibt es nur in diesem Browser auf diesem Gerät. Damit ein Verein für <b>alle</b> erscheint, das Wappen in den Ordner <b>wappen</b> legen, die Zeile in <b>vereine.csv</b> ergänzen und <b>Vereinsliste-aktualisieren.bat</b> starten (siehe ANLEITUNG.txt).</p>
@@ -227,6 +312,7 @@ details.card[open] summary::after{content:" –"}
 </main>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="dropOverlay" id="dropOverlay">Foto loslassen zum Einfügen<span id="dropOverlaySub">wird als Hintergrundbild übernommen</span></div>
 
 <script>
 (function(){
@@ -258,13 +344,22 @@ function fmtDate(iso){
 }
 
 /* ================= Vereine ================= */
+// Wappen stehen in window.WAPPEN (Dateiname -> Bilddaten), Vereine verweisen per Dateiname darauf
+const WAP = window.WAPPEN || {};
+const wapRes = x => typeof x === 'string' && x.indexOf('data:') !== 0 ? (WAP[x.toLowerCase()] || null) : x;
+function wapOf(v){
+  let w = Array.isArray(v) ? v.map(wapRes).filter(Boolean) : wapRes(v);
+  if (Array.isArray(w)) w = w.length > 1 ? w : (w[0] || null);
+  return w || null;
+}
 const builtIn = (Array.isArray(window.VEREINE) ? window.VEREINE : [])
   .filter(v => v && v.name)
   .map(v => ({ id:'b-' + slug(v.name), name:String(v.name), spielort:v.spielort || '', eigen:!!v.eigen,
-               wappen:v.wappen || null, skala:+v.skala || 1, lokal:false }));
+               nurAufstellung:!!v.nurAufstellung, wappen:wapOf(v.wappen), skala:+v.skala || 1, lokal:false }));
 let custom = LS.get(KEY_CLUBS, []).filter(c => c && c.id && c.name)
   .map(c => ({ id:c.id, name:c.name, spielort:c.spielort || '', eigen:false, wappen:c.wappen || null, skala:1, lokal:true, keep:true }));
-let ownList = builtIn.filter(c => c.eigen);
+// ownList = unsere Mannschaften für Spieltag/Ergebnisse, ownAll = zusätzlich Mannschaften nur für die Aufstellung (z. B. Damen)
+let ownList = builtIn.filter(c => c.eigen && !c.nurAufstellung);
 if (!ownList.length){
   ownList = [
     { id:'b-sv-amtzell', name:'SV Amtzell', spielort:'Stadion Amtzell', eigen:true, wappen:null, skala:1, lokal:false },
@@ -272,6 +367,13 @@ if (!ownList.length){
   ];
   builtIn.push(...ownList);
 }
+const ownAll = builtIn.filter(c => c.eigen);
+// Beschriftung der Mannschafts-Knöpfe: gibt es "X Damen", heißt "X" in der Aufstellung "X Herren"
+const teamLabel = c => ownAll.some(o => o.name.toLowerCase() === (c.name + ' damen').toLowerCase()) ? c.name + ' Herren' : c.name;
+// Auf diesem Gerät ausgetauschte Wappen (überschreiben das hinterlegte Wappen, Original bleibt erhalten)
+const KEY_OVR = 'spieltag.wappen.v1';
+let overrides = LS.get(KEY_OVR, {}) || {};
+builtIn.forEach(c => { c.wappenOrig = c.wappen; if (overrides[c.id]){ c.wappen = overrides[c.id]; c.ovr = true; } });
 const allClubs = () => builtIn.concat(custom);
 const club = id => allClubs().find(c => c.id === id) || null;
 const opponents = () => allClubs().filter(c => !c.eigen).sort((a, b) => a.name.localeCompare(b.name, 'de'));
@@ -320,14 +422,41 @@ function processLogo(img){
   t.getContext('2d').drawImage(c, minX, minY, tw, th, 0, 0, tw, th);
   return t;
 }
+// Spielgemeinschaft: 2–3 Wappen überlappend zu einem Bild zusammensetzen
+// (erstes Wappen oben links, das nächste versetzt nach rechts unten darüber)
+function composeLogos(parts){
+  const A = 400 * 400;
+  const sized = parts.map(p => { const s = Math.sqrt(A / (p.width * p.height)); return { p, w:p.width * s, h:p.height * s }; });
+  let x = 0, maxW = 0, maxH = 0;
+  sized.forEach((o, i) => {
+    o.x = x; o.y = i % 2 ? sized[0].h * 0.30 : 0;
+    x += o.w * 0.66;
+    maxW = Math.max(maxW, o.x + o.w); maxH = Math.max(maxH, o.y + o.h);
+  });
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(maxW); c.height = Math.ceil(maxH);
+  const x2 = c.getContext('2d');
+  sized.forEach((o, i) => {
+    x2.save();
+    if (i > 0){ x2.shadowColor = 'rgba(0,0,0,.35)'; x2.shadowBlur = 14; x2.shadowOffsetX = -3; x2.shadowOffsetY = 2; }
+    x2.drawImage(o.p, o.x, o.y, o.w, o.h);
+    x2.restore();
+  });
+  c._parts = parts.length;
+  return c;
+}
 const logoCache = new Map();
 function getLogo(c){
   if (!c || !c.wappen) return null;
   const v = logoCache.get(c.id);
   if (v !== undefined) return v === 'loading' ? null : v;
   logoCache.set(c.id, 'loading');
-  loadImg(c.wappen).then(img => { logoCache.set(c.id, processLogo(img)); scheduleDraw(); })
-                   .catch(() => logoCache.set(c.id, null));
+  const srcs = (Array.isArray(c.wappen) ? c.wappen : [c.wappen]).filter(Boolean).slice(0, 3);
+  Promise.all(srcs.map(loadImg)).then(imgs => {
+    const parts = imgs.map(processLogo);
+    logoCache.set(c.id, parts.length > 1 ? composeLogos(parts) : parts[0]);
+    scheduleDraw();
+  }).catch(() => logoCache.set(c.id, null));
   return null;
 }
 
@@ -342,10 +471,13 @@ const S = Object.assign({
   mode:'post', ownId:ownList[0].id, oppId:'', heim:true, nameOwn:'', nameOpp:'',
   date:today, time:'14:30', ort:'', title:'SPIELTAG',
   rTitle:'ERGEBNISSE', rSub:fmtDate(today), games:null,
+  aTitle:'STARTAUFSTELLUNG', lineups:{},
   dark:0.55, diag:true
 }, LS.get(KEY_STATE, {}));
-if (!['post','story','ergebnis'].includes(S.mode)) S.mode = 'post';
-if (!club(S.ownId) || !club(S.ownId).eigen) S.ownId = ownList[0].id;
+if (!['post','story','ergebnis','aufstellung'].includes(S.mode)) S.mode = 'post';
+if (!S.lineups || typeof S.lineups !== 'object') S.lineups = {};
+if (!ownList.some(c => c.id === S.ownId)) S.ownId = ownList[0].id;
+if (!ownAll.some(c => c.id === S.lnOwnId)) S.lnOwnId = S.ownId;   // Mannschaft der Aufstellungs-Story
 if (!club(S.oppId)) S.oppId = firstOpp();
 if (!S.nameOwn) S.nameOwn = nameOf(S.ownId);
 if (!S.nameOpp) S.nameOpp = nameOf(S.oppId);
@@ -367,24 +499,68 @@ function saveState(){
 const W = 1080;
 const cv = $('cv'), ctx = cv.getContext('2d');
 const FONT = 'Inter, "Helvetica Neue", Arial, sans-serif';
-let bgCanvas = null, drawVer = 0;
+let bgCanvas = null, bgBlur = null, drawVer = 0;
 const heightOf = () => S.mode === 'post' ? 1080 : 1920;
 
 function bgDims(H){
   const s = Math.max(W / bgCanvas.width, H / bgCanvas.height) * S.zoom;
   return { dw:bgCanvas.width * s, dh:bgCanvas.height * s };
 }
+// Verschiebe-Spielraum: über den Bildrand hinaus frei (bis 30 % der Bildfläche), Rest füllt ein unscharfer Hintergrund
+function bgLimits(H){
+  const { dw, dh } = bgDims(H);
+  return { mx:Math.abs(dw - W) / 2 + W * 0.3, my:Math.abs(dh - H) / 2 + H * 0.3 };
+}
 function clampOff(H){
   if (!bgCanvas) return;
-  const { dw, dh } = bgDims(H);
-  const mx = (dw - W) / 2, my = (dh - H) / 2;
+  const { mx, my } = bgLimits(H);
   S.offX = clamp(S.offX, -mx, mx); S.offY = clamp(S.offY, -my, my);
 }
-function drawBg(H){
+// Schwarz-Weiß-Kopie eines Bildes (einmal berechnet und gemerkt)
+const grayCache = new WeakMap();
+function grayOf(c){
+  if (!c) return c;
+  let g = grayCache.get(c); if (g) return g;
+  g = document.createElement('canvas'); g.width = c.width; g.height = c.height;
+  const x = g.getContext('2d'); x.drawImage(c, 0, 0);
+  try {
+    const d = x.getImageData(0, 0, g.width, g.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4){ const l = p[i] * 0.299 + p[i+1] * 0.587 + p[i+2] * 0.114; p[i] = p[i+1] = p[i+2] = l; }
+    x.putImageData(d, 0, 0);
+  } catch(e){}
+  if (c._parts) g._parts = c._parts;
+  grayCache.set(c, g); return g;
+}
+// dunkle Stoff-Struktur als Hintergrund, wenn kein Foto gewählt ist
+let darkTex = null;
+function darkTexture(){
+  if (darkTex) return darkTex;
+  const t = document.createElement('canvas'); t.width = 256; t.height = 256;
+  const x = t.getContext('2d'), d = x.createImageData(256, 256);
+  for (let i = 0; i < d.data.length; i += 4){ const v = Math.random() * 255; d.data[i] = d.data[i+1] = d.data[i+2] = v; d.data[i+3] = 14; }
+  x.putImageData(d, 0, 0);
+  return (darkTex = t);
+}
+function drawBg(H, gray){
   if (bgCanvas){
     clampOff(H);
+    const blur = gray ? grayOf(bgBlur) : bgBlur, img = gray ? grayOf(bgCanvas) : bgCanvas;
+    // unscharfe, abgedunkelte Füllung für frei gewordene Ränder
+    const s0 = Math.max(W / blur.width, H / blur.height);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(blur, (W - blur.width * s0) / 2, (H - blur.height * s0) / 2, blur.width * s0, blur.height * s0);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
     const { dw, dh } = bgDims(H);
-    ctx.drawImage(bgCanvas, (W - dw) / 2 + S.offX, (H - dh) / 2 + S.offY, dw, dh);
+    ctx.drawImage(img, (W - dw) / 2 + S.offX, (H - dh) / 2 + S.offY, dw, dh);
+    return;
+  }
+  if (gray){
+    const r = ctx.createRadialGradient(W * 0.35, H * 0.3, 60, W * 0.5, H * 0.5, H * 0.85);
+    r.addColorStop(0, '#2b2b2b'); r.addColorStop(0.6, '#141414'); r.addColorStop(1, '#060606');
+    ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = ctx.createPattern(darkTexture(), 'repeat'); ctx.fillRect(0, 0, W, H);
     return;
   }
   for (let x = 0, i = 0; x < W; x += 108, i++){
@@ -403,17 +579,21 @@ function drawDiag(H){
   ctx.restore();
 }
 const hasLS = 'letterSpacing' in ctx;
-function setFont(size, weight){ ctx.font = weight + ' ' + size + 'px ' + FONT; }
+function setFont(size, weight, fam){ ctx.font = weight + ' ' + size + 'px ' + (fam || FONT); }
 function txt(s, x, y, o){
   if (!s) return;
   let size = o.size; const weight = o.weight || 700, sp = o.sp || 0;
   if (hasLS) ctx.letterSpacing = sp + 'px';
-  setFont(size, weight);
+  setFont(size, weight, o.font);
   const maxW = o.maxW || Infinity;
-  while (ctx.measureText(s).width > maxW && size > 12){ size -= 1; setFont(size, weight); }
-  const dx = hasLS ? sp / 2 : 0;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = o.color || '#fff';
+  while (ctx.measureText(s).width > maxW && size > 12){ size -= 1; setFont(size, weight, o.font); }
+  const align = o.align || 'center';
+  const dx = hasLS && align === 'center' ? sp / 2 : 0;
+  // optisch exakt mittig: Grundlinie so setzen, dass die Versalhöhe (bzw. x-Höhe bei "vs.") genau auf y zentriert ist
+  y = y + size * (o.vh || (o.lower ? 0.546 : 0.727)) / 2;
+  ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = o.color || '#fff';
   ctx.save();
+  if (o.alpha != null) ctx.globalAlpha = o.alpha;
   if (o.sh === 2){
     // kräftiger Schlagschatten wie beim SPIELTAG-Titel der Vorlage
     ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 26; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 10;
@@ -426,6 +606,21 @@ function txt(s, x, y, o){
   ctx.restore();
   if (hasLS) ctx.letterSpacing = '0px';
 }
+// Vereinsname unter dem Wappen; zu lange Namen werden am "/" auf zwei Zeilen umbrochen
+function nameLines(s, x, y, size, maxW){
+  s = String(s || '').toUpperCase(); if (!s) return;
+  if (hasLS) ctx.letterSpacing = '0.5px';
+  setFont(size, 600);
+  const fits = ctx.measureText(s).width <= maxW * 1.2;   // leicht zu lang -> nur etwas kleiner, nicht umbrechen
+  if (hasLS) ctx.letterSpacing = '0px';
+  const i = s.indexOf('/');
+  const o = { size, weight:600, maxW, sp:0.5 };
+  if (fits || i < 0){ txt(s, x, y, o); return; }
+  // erste Zeile bleibt auf gleicher Höhe wie bei einzeiligen Namen -> links und rechts bündig
+  const lh = size * 1.3;
+  txt(s.slice(0, i + 1).trim(), x, y, o);
+  txt(s.slice(i + 1).trim(), x, y + lh, o);
+}
 function initials(name){
   const w = String(name || '?').split(/[\s/.-]+/).filter(x => x && !/^(I|II|III|1|2)$/.test(x));
   const main = w.filter(x => !/^(SV|FV|TSV|FC|SC|SGM|SG|SPVGG|TSG|VFB|VFL|TUS|SPFR)$/i.test(x))[0] || w[0] || '?';
@@ -435,9 +630,10 @@ function initials(name){
 function drawLogo(c, cx, cy, fallbackName, k){
   const logo = getLogo(c);
   if (logo){
-    const w = logo.width, h = logo.height;
-    let s = Math.sqrt((168 * 168) / (w * h));
-    s = Math.min(s, 235 / w, 182 / h) * ((c && c.skala) || 1) * k;
+    const w = logo.width, h = logo.height, n = logo._parts || 1;
+    const base = 168 * (1 + 0.12 * (n - 1));          // Doppel-Wappen etwas größer, damit jedes gut lesbar bleibt
+    let s = Math.sqrt((base * base) / (w * h));
+    s = Math.min(s, (n > 1 ? 280 : 235) / w, (n > 1 ? 190 : 182) / h) * ((c && c.skala) || 1) * k;
     const dw = w * s, dh = h * s;
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 18 * k; ctx.shadowOffsetY = 4 * k;
@@ -449,7 +645,7 @@ function drawLogo(c, cx, cy, fallbackName, k){
     ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fill();
     ctx.lineWidth = 5 * k; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke();
     ctx.restore();
-    txt(initials(fallbackName || (c && c.name)), cx, cy + 2 * k, { size:58 * k, weight:900, maxW:130 * k });
+    txt(initials(fallbackName || (c && c.name)), cx, cy, { size:58 * k, weight:900, maxW:130 * k });
   }
 }
 function sides(g){
@@ -463,7 +659,8 @@ function sides(g){
 function drawMatch(H){
   const story = H > 1080;
   const k = story ? 1.18 : 1;
-  const y0 = story ? 860 : 500;            // Mitte der Wappen
+  // Post: Position wie Kittl-Vorlage. Story: ganzer Block (Wappen bis Ort) genau in der Bildmitte.
+  const y0 = story ? Math.round(H / 2 - 190 * k) : 500;   // Mitte der Wappen
   ctx.fillStyle = 'rgba(0,0,0,' + (S.dark * 0.22) + ')'; ctx.fillRect(0, 0, W, H);
   drawDiag(H);
   const gTop = y0 - 260 * k;
@@ -477,9 +674,9 @@ function drawMatch(H){
   const xL = W / 2 - 177 * k, xR = W / 2 + 177 * k;
   drawLogo(L.c, xL, y0, L.n, k);
   drawLogo(R.c, xR, y0, R.n, k);
-  txt('vs.', W / 2, y0 + 10 * k, { size:46 * k, weight:800 });
-  txt((L.n || '').toUpperCase(), xL, y0 + 135 * k, { size:25 * k, weight:600, maxW:320 * k, sp:0.5 });
-  txt((R.n || '').toUpperCase(), xR, y0 + 135 * k, { size:25 * k, weight:600, maxW:320 * k, sp:0.5 });
+  txt('vs.', W / 2, y0, { size:46 * k, weight:800, lower:true });
+  nameLines(L.n, xL, y0 + 135 * k, 25 * k, 320 * k);
+  nameLines(R.n, xR, y0 + 135 * k, 25 * k, 320 * k);
   txt((S.title || '').toUpperCase(), W / 2, y0 + 312 * k, { size:142 * k, weight:900, maxW:W * 0.74, sp:-1, sh:2 });
   const dt = [fmtDate(S.date), S.time].filter(Boolean).join('   ');
   txt(dt, W / 2, y0 + 412 * k, { size:30 * k, weight:500, maxW:W - 120 });
@@ -495,13 +692,15 @@ function roundRect(x, y, w, h, r){
 function drawResults(H){
   ctx.fillStyle = 'rgba(0,0,0,' + (0.15 + S.dark * 0.55) + ')'; ctx.fillRect(0, 0, W, H);
   drawDiag(H);
-  txt((S.rTitle || '').toUpperCase(), W / 2, 330, { size:150, weight:900, maxW:W * 0.84, sp:-1, sh:2 });
-  txt((S.rSub || '').toUpperCase(), W / 2, 445, { size:36, weight:600, maxW:W - 140, sp:2 });
-
   const games = S.games, n = games.length;
-  const top = 540, avail = 1040, gap = 34;
+  const avail = 1040, gap = 34;
   const rowH = Math.min(320, (avail - (n - 1) * gap) / n);
-  let y = top + (avail - (n * rowH + (n - 1) * gap)) / 2;
+  const rowsH = n * rowH + (n - 1) * gap;
+  // ganzer Inhalt (Titel, Untertitel, Spiele) genau in der Bildmitte
+  const tY = Math.round(H / 2 - (200 + rowsH) / 2) + 55;     // Mitte des Titels (Inhalt: 55 über Titelmitte bis Ende der Spiele)
+  txt((S.rTitle || '').toUpperCase(), W / 2, tY, { size:150, weight:900, maxW:W * 0.84, sp:-1, sh:2 });
+  txt((S.rSub || '').toUpperCase(), W / 2, tY + 105, { size:36, weight:600, maxW:W - 140, sp:2 });
+  let y = tY + 145;
   const k = Math.min(1, rowH / 320);
   games.forEach(g => {
     const { L, R } = sides(g);
@@ -510,15 +709,15 @@ function drawResults(H){
     ctx.fillStyle = 'rgba(8,12,16,.55)'; ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.stroke();
     ctx.restore();
-    const ly = y + rowH * 0.42, ny = y + rowH * 0.84;
+    const ly = y + rowH * 0.40, ny = y + rowH * 0.79;   // Platz lassen für zweizeilige Namen
     const xL = 245, xR = W - 245, lk = 0.86 * k;
     drawLogo(L.c, xL, ly, L.n, lk);
     drawLogo(R.c, xR, ly, R.n, lk);
-    txt((L.n || '').toUpperCase(), xL, ny, { size:24 * Math.max(k, 0.8), weight:600, maxW:330, sp:0.5 });
-    txt((R.n || '').toUpperCase(), xR, ny, { size:24 * Math.max(k, 0.8), weight:600, maxW:330, sp:0.5 });
+    nameLines(L.n, xL, ny, 24 * Math.max(k, 0.8), 330);
+    nameLines(R.n, xR, ny, 24 * Math.max(k, 0.8), 330);
     const a = String(L.goals === '' || L.goals == null ? '–' : L.goals);
     const b = String(R.goals === '' || R.goals == null ? '–' : R.goals);
-    txt(a + ' : ' + b, W / 2, ly + 6 * k, { size:118 * k, weight:900, maxW:300, sh:2 });
+    txt(a + ' : ' + b, W / 2, ly, { size:118 * k, weight:900, maxW:300, sh:2 });
     y += rowH + gap;
   });
 }
@@ -530,8 +729,91 @@ function draw(){
   if (cv.height !== H) cv.height = H;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, W, H);
+  if (S.mode === 'aufstellung'){ drawLineup(H); return; }
   drawBg(H);
   if (S.mode === 'ergebnis') drawResults(H); else drawMatch(H);
+}
+
+// Diagonale Zierstreifen in zwei Ecken (oben links, unten rechts) wie in der Aufstellungs-Vorlage
+function drawStripes(H){
+  const sets = [[175, 16], [222, 10], [258, 6]];   // Abstand zur Ecke, Strichstärke
+  ctx.save();
+  sets.forEach(([d, w]) => {
+    let g = ctx.createLinearGradient(0, d, d, 0);
+    g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(0.5, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,.9)');
+    ctx.strokeStyle = g; ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(-20, d + 20); ctx.lineTo(d + 20, -20); ctx.stroke();
+    g = ctx.createLinearGradient(W, H - d, W - d, H);
+    g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(0.5, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,.95)');
+    ctx.strokeStyle = g;
+    ctx.beginPath(); ctx.moveTo(W + 20, H - d - 20); ctx.lineTo(W - d - 20, H + 20); ctx.stroke();
+  });
+  ctx.restore();
+}
+// Story Startaufstellung (1080×1920)
+function drawLineup(H){
+  drawBg(H, true);
+  ctx.fillStyle = 'rgba(0,0,0,' + (bgCanvas ? 0.35 + S.dark * 0.45 : S.dark * 0.35) + ')'; ctx.fillRect(0, 0, W, H);
+  const own = club(S.lnOwnId);
+
+  // großes, blasses Wappen als Wasserzeichen rechts
+  const logo = getLogo(own);
+  if (logo){
+    const g = grayOf(logo), hh = H * 0.42, ww = g.width * hh / g.height;
+    ctx.save();
+    ctx.globalAlpha = 0.10;
+    ctx.translate(W * 0.84, H * 0.56); ctx.rotate(-0.16);
+    ctx.drawImage(g, -ww / 2, -hh / 2, ww, hh);
+    ctx.restore();
+  }
+  drawStripes(H);
+
+  // Wappen oben, Titel, Strich
+  drawLogo(own, W / 2, 205, nameOf(S.lnOwnId), 1.42);
+  const title = (S.aTitle || '').toUpperCase();
+  if (title){
+    setFont(50, 800); if (hasLS) ctx.letterSpacing = '0px';
+    const w0 = ctx.measureText(title).width;
+    const sp = clamp((W * 0.80 - w0) / Math.max(1, title.length - 1), 0, 30);
+    txt(title, W / 2, 402, { size:50, weight:800, sp, maxW:W - 90, sh:0 });
+  }
+  ctx.fillStyle = '#fff'; ctx.fillRect(W / 2 - 130, 461, 260, 6);
+
+  // Spielerliste: Nummer rechtsbündig | Strich | Name linksbündig – als Block mittig
+  const L = getLineup();
+  let rows = L.rows.filter(r => (r.nr || '').trim() || (r.name || '').trim());
+  const demo = !rows.length;
+  if (demo) rows = emptyRows(11).map(() => ({ nr:'00', name:'Spielername' }));
+  const n = rows.length;
+  const NS = 50, MS = 44, maxName = 560;
+  setFont(NS, 800); if (hasLS) ctx.letterSpacing = '0px';
+  const numW = Math.max(56, ...rows.map(r => ctx.measureText(r.nr || '').width));
+  setFont(MS, 400); if (hasLS) ctx.letterSpacing = '1.5px';
+  const nameW = Math.min(maxName, Math.max(...rows.map(r => ctx.measureText(r.name || '').width)));
+  if (hasLS) ctx.letterSpacing = '0px';
+  const g1 = 32, g2 = 36, blockW = numW + g1 + 3 + g2 + nameW;
+  const x0 = (W - blockW) / 2, xBar = x0 + numW + g1, xName = xBar + 3 + g2;
+  const top = 560, bottom = 1560, step = Math.min(96, (bottom - top) / Math.max(1, n));
+  let y = (top + bottom) / 2 - step * (n - 1) / 2;
+  const a = demo ? 0.35 : 1;
+  rows.forEach(r => {
+    txt(r.nr || '', x0 + numW, y, { size:NS, weight:800, align:'right', sh:0, alpha:a });
+    ctx.save(); ctx.globalAlpha = 0.85 * a; ctx.fillStyle = '#fff'; ctx.fillRect(xBar, y - 23, 3, 46); ctx.restore();
+    txt(r.name || '', xName, y, { size:MS, weight:400, align:'left', sp:1.5, maxW:maxName, sh:0, alpha:a });
+    y += step;
+  });
+
+  // Schlusszeile in Pinselschrift mit Linien links und rechts
+  const foot = L.footer || '';
+  if (foot){
+    const fy = 1690, FS = 66, SCRIPT = '"Kaushan Script", "Brush Script MT", cursive';
+    setFont(FS, 400, SCRIPT); if (hasLS) ctx.letterSpacing = '0px';
+    const tw = Math.min(W - 360, ctx.measureText(foot).width);
+    txt(foot, W / 2, fy, { size:FS, weight:400, font:SCRIPT, maxW:W - 360, sh:0, vh:0.62 });
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(W / 2 - tw / 2 - 40 - 100, fy - 1.5, 100, 3);
+    ctx.fillRect(W / 2 + tw / 2 + 40, fy - 1.5, 100, 3);
+  }
 }
 let raf = 0;
 function scheduleDraw(){
@@ -555,6 +837,7 @@ function fileName(){
   const t = s => String(s || '').replace(/ß/g,'ss').normalize('NFD').replace(/[̀-ͯ]/g,'')
                  .replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   if (S.mode === 'ergebnis') return ['Ergebnisse', t(S.rSub) || S.date].filter(Boolean).join('_') + '.jpg';
+  if (S.mode === 'aufstellung') return ['Aufstellung', t(nameOf(S.lnOwnId)), S.date].filter(Boolean).join('_') + '.jpg';
   const { L, R } = sides(S);
   return [S.mode === 'story' ? 'Story' : 'Post', S.date, t(L.n), 'vs', t(R.n)].filter(Boolean).join('_') + '.jpg';
 }
@@ -584,28 +867,54 @@ $('btnDl').addEventListener('click', async () => {
 function segMark(el, val){ el.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(val))); }
 function updateModeUI(){
   segMark($('mode'), S.mode);
-  const res = S.mode === 'ergebnis';
-  $('teamSel').hidden = res; $('matchForm').hidden = res; $('resultForm').hidden = !res;
-  segMark($('ownSeg'), S.ownId); segMark($('ha'), S.heim ? 'heim' : 'aus');
+  const res = S.mode === 'ergebnis', ln = S.mode === 'aufstellung';
+  $('teamSel').hidden = res; $('ha').hidden = ln;
+  $('matchForm').hidden = res || ln; $('resultForm').hidden = !res; $('lineupForm').hidden = !ln;
+  // Aufstellung: alle eigenen Mannschaften (inkl. Damen), sonst nur Herren/SGM
+  const list = ln ? ownAll : ownList;
+  $('ownSeg').innerHTML = list.map(c => '<button type="button" data-v="' + esc(c.id) + '">' + esc(ln ? teamLabel(c) : c.name) + '</button>').join('');
+  segMark($('ownSeg'), ln ? S.lnOwnId : S.ownId); segMark($('ha'), S.heim ? 'heim' : 'aus');
+  if (ln) renderLineup();
 }
-$('ownSeg').innerHTML = ownList.map(c => '<button type="button" data-v="' + esc(c.id) + '">' + esc(c.name) + '</button>').join('');
 $('mode').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  S.mode = b.dataset.v; S.offX = 0; S.offY = 0; updateModeUI(); changed();
+  S.mode = b.dataset.v; S.offX = 0; S.offY = 0; updateModeUI(); syncPos(); changed();
 });
 $('ownSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
+  if (S.mode === 'aufstellung'){ S.lnOwnId = b.dataset.v; updateModeUI(); changed(); return; }
   S.ownId = b.dataset.v; S.nameOwn = nameOf(S.ownId); $('nameOwn').value = S.nameOwn;
-  autoOrt(); updateModeUI(); changed();
+  if (S.heim) autoOrt();
+  updateModeUI(); changed();
 });
 $('ha').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   S.heim = b.dataset.v === 'heim'; autoOrt(); updateModeUI(); changed();
 });
+/* Ort: hinterlegter Spielort, sonst Vorauswahl "Sportplatz <Ort aus Vereinsname>" */
+const ORT_TYP = /^(Stadion|Sportplatz|Kunstrasen(platz)?)\b\s*/i;
+const VORSILBE = /^(SGM|SG|SV|FV|FC|TSV|TSG|TV|SC|SSV|ASV|DJK|VFB|VFL|TUS|SPVGG|SPFR|SPORTFREUNDE)\.?$/i;
+function townFromName(name){
+  const first = String(name || '').split('/')[0];
+  return first.split(/\s+/).filter(x => x && !VORSILBE.test(x) && !/^(I|II|III|IV|\d+)$/.test(x)).join(' ');
+}
 function autoOrt(){
   const c = club(S.heim ? S.ownId : S.oppId);
-  S.ort = c && c.spielort ? c.spielort : ''; $('ort').value = S.ort;
+  S.ort = c && c.spielort ? c.spielort : (c ? ('Sportplatz ' + townFromName(c.name)).trim() : '');
+  $('ort').value = S.ort; markOrt();
 }
+function markOrt(){
+  const m = ORT_TYP.exec(S.ort || '');
+  const t = m ? m[1].replace(/platz$/i, '').toLowerCase() : '';
+  $('ortTyp').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v.toLowerCase() === t));
+}
+$('ortTyp').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  let rest = (S.ort || '').trim().replace(ORT_TYP, '');
+  if (!rest){ const c = club(S.heim ? S.ownId : S.oppId); rest = townFromName(c ? c.name : ''); }
+  S.ort = (b.dataset.v + ' ' + rest).trim(); $('ort').value = S.ort;
+  markOrt(); changed();
+});
 
 /* ================= Formular: Spieltag ================= */
 function oppOptions(sel){
@@ -624,7 +933,7 @@ $('opp').addEventListener('change', e => {
   if (!S.heim) autoOrt();
   changed();
 });
-[['nameOwn','nameOwn'],['nameOpp','nameOpp'],['date','date'],['time','time'],['ort','ort'],['title','title'],['rTitle','rTitle'],['rSub','rSub']]
+[['nameOwn','nameOwn'],['nameOpp','nameOpp'],['date','date'],['time','time'],['ort','ort'],['title','title'],['rTitle','rTitle'],['rSub','rSub'],['aTitle','aTitle']]
   .forEach(([id, k]) => {
     const el = $(id); el.value = S[k] || '';
     el.addEventListener('input', () => { S[k] = el.value; changed(); });
@@ -680,13 +989,88 @@ $('addGame').addEventListener('click', () => {
   S.games.push(newGame(next.id)); renderGames(); changed();
 });
 
+/* ================= Formular: Aufstellung ================= */
+const kaderOf = id => ((window.KADER || {})[nameOf(id)] || []);
+const emptyRows = n => Array.from({ length:n }, () => ({ nr:'', name:'' }));
+function getLineup(){
+  let L = S.lineups[S.lnOwnId];
+  if (!L || !Array.isArray(L.rows)){
+    const kurz = /SGM|SG /i.test(nameOf(S.lnOwnId)) ? 'SGM' : 'SVA';
+    L = S.lineups[S.lnOwnId] = { rows:emptyRows(11), footer:"Auf geht's " + kurz };
+  }
+  return L;
+}
+function renderLineup(){
+  const L = getLineup(), kader = kaderOf(S.lnOwnId);
+  $('kaderList').innerHTML = kader.map(p => '<option value="' + esc(p.name) + '">' +
+    esc((p.nr ? '#' + p.nr + ' · ' : '') + (p.pos || '')) + '</option>').join('');
+  $('kaderInfo').textContent = kader.length
+    ? kader.length + ' Spieler hinterlegt – Namen eintippen und aus der Liste wählen, die Nummer wird vorgeschlagen und kann geändert werden.'
+    : 'Für diese Mannschaft ist noch kein Kader hinterlegt – Nummern und Namen einfach eintippen.';
+  $('aFooter').value = L.footer || '';
+  $('lineup').innerHTML = L.rows.map((r, i) =>
+    '<div class="lnRow" data-i="' + i + '">' +
+      '<input type="text" inputmode="numeric" maxlength="3" data-k="nr" placeholder="–" value="' + esc(r.nr) + '" aria-label="Nummer Spieler ' + (i + 1) + '">' +
+      '<input type="text" list="kaderList" data-k="name" placeholder="Spieler ' + (i + 1) + '" value="' + esc(r.name) + '" autocomplete="off">' +
+      '<button type="button" class="btn small x" data-act="del" title="Zeile entfernen" aria-label="Zeile entfernen">✕</button>' +
+    '</div>').join('');
+  $('lnAdd').hidden = L.rows.length >= 16;
+}
+$('lineup').addEventListener('input', e => {
+  const el = e.target, row = el.closest('.lnRow'); if (!row || !el.dataset.k) return;
+  const r = getLineup().rows[+row.dataset.i];
+  if (el.dataset.k === 'nr'){ r.nr = el.value.replace(/[^0-9]/g, '').slice(0, 3); if (el.value !== r.nr) el.value = r.nr; }
+  else {
+    r.name = el.value;
+    // Spieler aus dem Kader gewählt -> Nummer vorschlagen, wenn noch leer
+    const p = kaderOf(S.lnOwnId).find(x => x.name.toLowerCase() === el.value.trim().toLowerCase());
+    if (p && p.nr && !r.nr){ r.nr = p.nr; row.querySelector('[data-k="nr"]').value = p.nr; }
+  }
+  changed();
+});
+$('lineup').addEventListener('click', e => {
+  if (!e.target.closest('[data-act="del"]')) return;
+  const L = getLineup(); L.rows.splice(+e.target.closest('.lnRow').dataset.i, 1);
+  if (!L.rows.length) L.rows = emptyRows(1);
+  renderLineup(); changed();
+});
+$('lnAdd').addEventListener('click', () => { const L = getLineup(); if (L.rows.length < 16){ L.rows.push({ nr:'', name:'' }); renderLineup(); changed(); } });
+$('lnSort').addEventListener('click', () => {
+  const L = getLineup();
+  L.rows.sort((a, b) => (a.nr === '' ? 999 : +a.nr) - (b.nr === '' ? 999 : +b.nr));
+  renderLineup(); changed();
+});
+$('lnClear').addEventListener('click', () => {
+  if (!confirm('Alle Spieler aus der Aufstellung entfernen?')) return;
+  getLineup().rows = emptyRows(11); renderLineup(); changed();
+});
+$('aFooter').addEventListener('input', e => { getLineup().footer = e.target.value; changed(); });
+
 /* ================= Hintergrundfoto ================= */
+const posTxt = (v, neg, pos) => Math.abs(v) < 0.01 ? 'Mitte' : Math.round(Math.abs(v) * 100) + ' % ' + (v < 0 ? neg : pos);
+function syncPos(){
+  let px = 0, py = 0;
+  if (bgCanvas){ clampOff(heightOf()); const { mx, my } = bgLimits(heightOf()); px = mx ? S.offX / mx : 0; py = my ? S.offY / my : 0; }
+  // Regler zeigt die Bildposition: nach rechts schieben = Bild wandert nach rechts
+  $('posX').value = px; $('posXOut').textContent = posTxt(px, 'links', 'rechts');
+  $('posY').value = py; $('posYOut').textContent = posTxt(py, 'oben', 'unten');
+}
 function syncRanges(){
   $('zoom').value = S.zoom; $('zoomOut').textContent = Math.round(S.zoom * 100) + ' %';
+  syncPos();
   $('dark').value = S.dark; $('darkOut').textContent = Math.round(S.dark * 100) + ' %';
   $('diag').checked = !!S.diag;
 }
 $('zoom').addEventListener('input', e => { S.zoom = +e.target.value; syncRanges(); scheduleDraw(); });
+$('posX').addEventListener('input', e => {
+  if (!bgCanvas){ toast('Bitte zuerst ein Foto wählen.'); e.target.value = 0; return; }
+  S.offX = +e.target.value * bgLimits(heightOf()).mx; syncPos(); scheduleDraw();
+});
+$('posY').addEventListener('input', e => {
+  if (!bgCanvas){ toast('Bitte zuerst ein Foto wählen.'); e.target.value = 0; return; }
+  S.offY = +e.target.value * bgLimits(heightOf()).my; syncPos(); scheduleDraw();
+});
+$('bgReset').addEventListener('click', () => { S.zoom = 1; S.offX = 0; S.offY = 0; syncRanges(); scheduleDraw(); });
 $('dark').addEventListener('input', e => { S.dark = +e.target.value; syncRanges(); changed(); });
 $('diag').addEventListener('change', e => { S.diag = e.target.checked; changed(); });
 async function setBackground(file){
@@ -698,21 +1082,56 @@ async function setBackground(file){
     const c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    bgCanvas = c; S.zoom = 1; S.offX = 0; S.offY = 0; syncRanges();
-    $('bgName').textContent = file.name || 'Foto geladen';
+    // Mini-Version (stark verkleinert) ergibt hochskaliert eine weiche Unschärfe – funktioniert in allen Browsern
+    const kb = 40 / Math.max(c.width, c.height);
+    const bl = document.createElement('canvas');
+    bl.width = Math.max(1, Math.round(c.width * kb)); bl.height = Math.max(1, Math.round(c.height * kb));
+    const bx = bl.getContext('2d'); bx.imageSmoothingQuality = 'high'; bx.drawImage(c, 0, 0, bl.width, bl.height);
+    bgCanvas = c; bgBlur = bl; S.zoom = 1; S.offX = 0; S.offY = 0; syncRanges();
+    $('bgDropTitle').textContent = 'Foto geladen ✓';
+    $('bgName').textContent = (file.name ? file.name + ' · ' : '') + 'zum Ändern neues Foto hierher ziehen';
+    $('bgDrop').classList.add('has');
     scheduleDraw();
   } catch(err){
     toast('Dieses Bild kann der Browser nicht öffnen. Bitte JPG oder PNG verwenden.');
   } finally { URL.revokeObjectURL(url); }
 }
 $('bgFile').addEventListener('change', e => { setBackground(e.target.files[0]); e.target.value = ''; });
-const box = $('canvasBox');
-box.addEventListener('dragover', e => { e.preventDefault(); box.classList.add('drop'); });
-box.addEventListener('dragleave', () => box.classList.remove('drop'));
-box.addEventListener('drop', e => {
-  e.preventDefault(); box.classList.remove('drop');
-  const f = [...(e.dataTransfer.files || [])].find(f => /^image\//.test(f.type));
-  if (f) setBackground(f);
+/* Drag & Drop: Bild überall auf die Seite ziehen.
+   Über dem Feld "Neuer Gegner" wird es als Wappen übernommen, sonst als Hintergrundfoto. */
+let dragDepth = 0;
+const hasFiles = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files'));
+const overNewClub = e => !$('newClub').hidden && e.target && e.target.closest && e.target.closest('#newClub');
+const overLogoEdit = e => !$('logoEdit').hidden && e.target && e.target.closest && e.target.closest('#logoEdit');
+function dragEnd(){ dragDepth = 0; document.body.classList.remove('dragging'); $('bgDrop').classList.remove('over'); }
+window.addEventListener('dragenter', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth++; document.body.classList.add('dragging');
+});
+window.addEventListener('dragover', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+  const nc = overNewClub(e), le = overLogoEdit(e);
+  $('dropOverlaySub').textContent = nc ? 'wird als Wappen des neuen Gegners übernommen'
+    : le ? 'wird als neues Wappen übernommen' : 'wird als Hintergrundbild übernommen';
+  $('bgDrop').classList.toggle('over', !nc && !le);
+});
+window.addEventListener('dragleave', e => {
+  if (!hasFiles(e)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) dragEnd();
+});
+window.addEventListener('drop', e => {
+  if (!e.dataTransfer) return;
+  e.preventDefault();
+  const nc = overNewClub(e), le = overLogoEdit(e);
+  dragEnd();
+  const files = [...(e.dataTransfer.files || [])];
+  const f = files.find(x => /^image\//.test(x.type));
+  if (!f){ if (files.length) toast('Bitte eine Bilddatei (JPG oder PNG) verwenden.'); return; }
+  if (nc) ncLoad(ncLogos[0] ? 1 : 0, f);
+  else if (le) leLoad(leLogos[0] ? 1 : 0, f);
+  else setBackground(f);
 });
 const ptrs = new Map(); let pinch = null;
 const pdist = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
@@ -727,8 +1146,8 @@ cv.addEventListener('pointermove', e => {
   const k = cv.width / cv.getBoundingClientRect().width;
   if (ptrs.size === 1){ S.offX += (e.clientX - p.x) * k; S.offY += (e.clientY - p.y) * k; }
   p.x = e.clientX; p.y = e.clientY;
-  if (ptrs.size === 2 && pinch){ S.zoom = clamp(pinch.zoom * pdist() / pinch.d, 1, 4); syncRanges(); }
-  scheduleDraw();
+  if (ptrs.size === 2 && pinch){ S.zoom = clamp(pinch.zoom * pdist() / pinch.d, 0.5, 4); }
+  syncRanges(); scheduleDraw();
 });
 const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) cv.classList.remove('grab'); };
 cv.addEventListener('pointerup', endPtr);
@@ -736,23 +1155,25 @@ cv.addEventListener('pointercancel', endPtr);
 cv.addEventListener('wheel', e => {
   if (!bgCanvas) return;
   e.preventDefault();
-  S.zoom = clamp(S.zoom * (e.deltaY < 0 ? 1.06 : 1 / 1.06), 1, 4); syncRanges(); scheduleDraw();
+  S.zoom = clamp(S.zoom * (e.deltaY < 0 ? 1.06 : 1 / 1.06), 0.5, 4); syncRanges(); scheduleDraw();
 }, { passive:false });
 cv.addEventListener('click', () => { if (!bgCanvas) $('bgFile').click(); });
 
 /* ================= Neuer Gegner ================= */
-let ncLogo = null, ncTarget = null;
+let ncLogos = [], ncTarget = null;
+const NC_HINT = 'PNG mit transparentem Hintergrund ist ideal. Bei Spielgemeinschaften zusätzlich das 2. Wappen wählen – beide werden automatisch zusammengesetzt.';
 function openNew(target){
-  ncTarget = target; ncLogo = null;
+  ncTarget = target; ncLogos = [];
   $('newClub').hidden = false;
   $('ncName').value = ''; $('ncOrt').value = ''; $('ncPrev').hidden = true;
-  $('ncHint').textContent = 'PNG mit transparentem Hintergrund ist ideal.';
+  $('ncHint').textContent = NC_HINT;
   $('newClub').scrollIntoView({ behavior:'smooth', block:'center' });
   setTimeout(() => $('ncName').focus({ preventScroll:true }), 300);
 }
 function closeNew(){ $('newClub').hidden = true; ncTarget = null; }
-$('ncFile').addEventListener('change', async e => {
-  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+function ncParts(){ return ncLogos.filter(Boolean); }
+function ncComposite(){ const p = ncParts().map(l => l.canvas); return p.length > 1 ? composeLogos(p) : (p[0] || null); }
+async function ncLoad(idx, f){
   const url = URL.createObjectURL(f);
   try {
     const c = processLogo(await loadImg(url));
@@ -760,19 +1181,25 @@ $('ncFile').addEventListener('change', async e => {
     const o = document.createElement('canvas');
     o.width = Math.max(1, Math.round(c.width * k)); o.height = Math.max(1, Math.round(c.height * k));
     o.getContext('2d').drawImage(c, 0, 0, o.width, o.height);
-    ncLogo = { canvas:o, data:o.toDataURL('image/png') };
-    $('ncPrev').src = ncLogo.data; $('ncPrev').hidden = false; $('ncHint').textContent = f.name;
+    ncLogos[idx] = { canvas:o, data:o.toDataURL('image/png'), name:f.name };
+    const comp = ncComposite();
+    $('ncPrev').src = comp.toDataURL('image/png'); $('ncPrev').hidden = false;
+    $('ncHint').textContent = ncParts().map(l => l.name).join(' + ');
   } catch(err){ toast('Wappen konnte nicht geladen werden.'); }
   finally { URL.revokeObjectURL(url); }
-});
+}
+$('ncFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) ncLoad(0, f); });
+$('ncFile2').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) ncLoad(1, f); });
 $('ncCancel').addEventListener('click', () => { closeNew(); fillOpp(); renderGames(); });
 $('ncOk').addEventListener('click', () => {
   const name = $('ncName').value.trim();
   if (!name){ toast('Bitte den Vereinsnamen eintragen.'); $('ncName').focus(); return; }
+  const parts = ncParts();
   const c = { id:'c-' + Date.now().toString(36), name, spielort:$('ncOrt').value.trim(), eigen:false,
-              wappen:ncLogo ? ncLogo.data : null, skala:1, lokal:true, keep:$('ncKeep').checked };
+              wappen:parts.length > 1 ? parts.map(l => l.data) : (parts[0] ? parts[0].data : null),
+              skala:1, lokal:true, keep:$('ncKeep').checked };
   custom.push(c);
-  if (ncLogo) logoCache.set(c.id, ncLogo.canvas);
+  if (parts.length) logoCache.set(c.id, ncComposite());
   if (c.keep && !persistCustom()) toast('Speicher voll – der Gegner gilt nur bis zum Schließen der Seite.');
   else toast(c.keep ? 'Gegner gespeichert.' : 'Gegner übernommen (nicht gespeichert).');
   const t = ncTarget || { type:'main' };
@@ -780,6 +1207,90 @@ $('ncOk').addEventListener('click', () => {
   else { S.oppId = c.id; S.nameOpp = c.name; $('nameOpp').value = c.name; if (!S.heim) autoOrt(); }
   closeNew(); fillOpp(); renderGames(); renderClubList(); changed();
 });
+/* ================= Wappen eines bestehenden Vereins ändern ================= */
+let leLogos = [];
+async function fileToLogo(f){
+  const url = URL.createObjectURL(f);
+  try {
+    const c = processLogo(await loadImg(url));
+    const k = Math.min(1, 500 / Math.max(c.width, c.height));
+    const o = document.createElement('canvas');
+    o.width = Math.max(1, Math.round(c.width * k)); o.height = Math.max(1, Math.round(c.height * k));
+    o.getContext('2d').drawImage(c, 0, 0, o.width, o.height);
+    return { canvas:o, data:o.toDataURL('image/png'), name:f.name };
+  } finally { URL.revokeObjectURL(url); }
+}
+function fillLeClubs(sel){
+  const list = ownAll.concat(opponents());
+  $('leClub').innerHTML = list.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) +
+    (c.eigen ? ' (unsere Mannschaft)' : '') + (c.ovr ? ' – Wappen geändert' : '') + (c.wappen ? '' : ' – ohne Wappen') + '</option>').join('');
+  $('leClub').value = sel && club(sel) ? sel : list[0].id;
+}
+function leShowCurrent(){
+  const c = club($('leClub').value), lg = getLogo(c);
+  if (lg){ $('leCur').src = lg.toDataURL('image/png'); $('leCur').hidden = false; $('leCurNone').hidden = true; }
+  else {
+    $('leCur').hidden = true; $('leCurNone').hidden = false;
+    if (c && logoCache.get(c.id) === 'loading') setTimeout(leShowCurrent, 300);
+  }
+  $('leReset').hidden = !(c && c.ovr);
+}
+function leResetPick(){
+  leLogos = []; $('lePrev').hidden = true;
+  $('leHint').textContent = 'Bild wählen oder hierher ziehen. Wird automatisch freigestellt und zugeschnitten. Bei Spielgemeinschaften zusätzlich das 2. Wappen wählen.';
+}
+function openLogoEdit(id){
+  fillLeClubs(id); leResetPick();
+  $('logoEdit').hidden = false; leShowCurrent();
+  $('logoEdit').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+async function leLoad(idx, f){
+  try {
+    leLogos[idx] = await fileToLogo(f);
+    const p = leLogos.filter(Boolean).map(l => l.canvas);
+    $('lePrev').src = (p.length > 1 ? composeLogos(p) : p[0]).toDataURL('image/png'); $('lePrev').hidden = false;
+    $('leHint').textContent = 'Neu: ' + leLogos.filter(Boolean).map(l => l.name).join(' + ') + ' – mit „Speichern“ übernehmen.';
+  } catch(err){ toast('Wappen konnte nicht geladen werden.'); }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-logo]'); if (!b) return;
+  const t = b.dataset.logo;
+  openLogoEdit(t === 'own' ? (S.mode === 'aufstellung' ? S.lnOwnId : S.ownId) : t === 'opp' ? S.oppId : undefined);
+});
+$('leClub').addEventListener('change', () => { leResetPick(); leShowCurrent(); });
+$('leFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) leLoad(0, f); });
+$('leFile2').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) leLoad(1, f); });
+$('leCancel').addEventListener('click', () => { $('logoEdit').hidden = true; });
+$('leOk').addEventListener('click', () => {
+  const parts = leLogos.filter(Boolean), c = club($('leClub').value);
+  if (!c) return;
+  if (!parts.length){ toast('Bitte zuerst ein neues Wappen wählen.'); return; }
+  const data = parts.length > 1 ? parts.map(l => l.data) : parts[0].data;
+  let ok = true;
+  if (c.lokal){ c.wappen = data; ok = persistCustom(); }
+  else { overrides[c.id] = data; c.wappen = data; c.ovr = true; ok = LS.set(KEY_OVR, overrides); }
+  logoCache.set(c.id, parts.length > 1 ? composeLogos(parts.map(l => l.canvas)) : parts[0].canvas);
+  toast(ok ? 'Wappen von ' + c.name + ' gespeichert.' : 'Speicher voll – das Wappen gilt nur bis zum Schließen der Seite.');
+  fillLeClubs(c.id); leResetPick(); leShowCurrent(); renderOvrList(); renderClubList(); changed();
+});
+$('leReset').addEventListener('click', () => resetLogo($('leClub').value));
+function resetLogo(id){
+  const c = club(id); if (!c || !c.ovr) return;
+  delete overrides[c.id]; LS.set(KEY_OVR, overrides);
+  c.wappen = c.wappenOrig; c.ovr = false; logoCache.delete(c.id);
+  toast('Original-Wappen von ' + c.name + ' wiederhergestellt.');
+  if (!$('logoEdit').hidden){ fillLeClubs(c.id); leShowCurrent(); }
+  renderOvrList(); changed();
+}
+function renderOvrList(){
+  const list = builtIn.filter(c => c.ovr);
+  $('ovrList').innerHTML = list.map(c =>
+    '<li><img src="' + esc(Array.isArray(c.wappen) ? c.wappen[0] : c.wappen) + '" alt="">' +
+    '<span>' + esc(c.name) + ' <span class="muted">· Wappen geändert</span></span>' +
+    '<button type="button" class="btn small" data-reset="' + esc(c.id) + '">Original</button></li>').join('');
+}
+$('ovrList').addEventListener('click', e => { const b = e.target.closest('[data-reset]'); if (b) resetLogo(b.dataset.reset); });
+
 function persistCustom(){
   return LS.set(KEY_CLUBS, custom.filter(c => c.keep).map(({ id, name, spielort, wappen }) => ({ id, name, spielort, wappen })));
 }
@@ -787,7 +1298,7 @@ function renderClubList(){
   const list = custom.filter(c => c.keep);
   $('clubEmpty').hidden = list.length > 0;
   $('clubList').innerHTML = list.map(c =>
-    '<li>' + (c.wappen ? '<img src="' + esc(c.wappen) + '" alt="">' : '') +
+    '<li>' + (c.wappen ? '<img src="' + esc(Array.isArray(c.wappen) ? c.wappen[0] : c.wappen) + '" alt="">' : '') +
     '<span>' + esc(c.name) + (c.spielort ? ' <span class="muted">· ' + esc(c.spielort) + '</span>' : '') + '</span>' +
     '<button type="button" class="btn small danger" data-del="' + esc(c.id) + '">Löschen</button></li>').join('');
 }
@@ -803,10 +1314,12 @@ $('clubList').addEventListener('click', e => {
 });
 
 /* ================= Start ================= */
-fillOpp(); renderGames(); renderClubList(); syncRanges(); updateModeUI();
+$('ort').addEventListener('input', markOrt);
+fillOpp(); renderGames(); renderClubList(); renderOvrList(); syncRanges(); updateModeUI(); markOrt();
 draw();
 if (document.fonts){
-  Promise.all(['500','600','700','800','900'].map(w => document.fonts.load(w + ' 40px Inter'))).catch(() => {}).then(scheduleDraw);
+  Promise.all(['400','500','600','700','800','900'].map(w => document.fonts.load(w + ' 40px Inter'))
+    .concat(document.fonts.load('400 40px "Kaushan Script"'))).catch(() => {}).then(scheduleDraw);
   document.fonts.ready.then(scheduleDraw);
 }
 })();
