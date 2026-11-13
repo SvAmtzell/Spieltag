@@ -59,9 +59,23 @@ input[type=date],input[type=time]{color-scheme:dark}
   background:rgba(10,14,18,.85);border:4px dashed var(--accent);color:#fff;font-size:26px;font-weight:900;pointer-events:none;text-align:center;padding:20px}
 .dropOverlay span{font-size:15px;font-weight:600;color:var(--muted)}
 body.dragging .dropOverlay{display:flex}
-.lnHead,.lnRow{display:grid;grid-template-columns:70px 1fr 40px;gap:8px;align-items:center}
-.lnHead{margin-top:12px;font-size:12px;font-weight:700;color:var(--muted)}
-.lnRow{margin-top:8px}
+.lnRow{display:grid;grid-template-columns:70px 1fr 40px;gap:8px;align-items:center;margin-top:8px}
+.lnName{font-weight:700;font-size:15px;padding:0 4px}
+.lnAddRow{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center}
+.lnAddRow input{height:42px}
+.lnCount{display:inline-block;margin:10px 0 2px;padding:6px 12px;border-radius:999px;background:var(--panel2);font-size:14px;font-weight:800}
+.lnCount.ok{background:rgba(60,207,142,.18);color:#3ccf8e}
+.lnCount.warn{background:rgba(249,173,26,.18);color:#f9ad1a}
+.kGroup h3{margin:16px 0 8px;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted)}
+.kGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.kChip{display:flex;align-items:center;gap:9px;min-height:46px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:14px;font-weight:700;text-align:left;cursor:pointer;line-height:1.2}
+.kChip .nr{flex:none;min-width:32px;height:32px;padding:0 4px;border-radius:8px;background:var(--panel);display:inline-flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:900;color:var(--muted)}
+.kChip:hover{border-color:var(--muted)}
+.kChip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.kChip.on .nr{background:rgba(255,255,255,.22);color:#fff}
+@media (max-width:420px){ .kGrid{grid-template-columns:1fr 1fr} .kChip{font-size:13px} }
 .lnRow input[type=text]{height:42px}
 .lnRow input[data-k=nr]{text-align:center;font-weight:800}
 .lnRow .x{height:42px;padding:0;width:40px;color:var(--muted)}
@@ -255,21 +269,31 @@ details.card[open] summary::after{content:" –"}
     <!-- Aufstellung -->
     <div id="lineupForm" hidden>
       <div class="card">
-        <h2>Aufstellung</h2>
-        <div class="row2" style="margin-top:0">
+        <h2>Spieler auswählen</h2>
+        <p class="info" style="margin-top:0"><b>Spieler antippen = aufgestellt.</b> Nochmal antippen = wieder raus. Die Liste im Bild sortiert sich automatisch nach Nummer.</p>
+        <div class="lnCount" id="lnCount"></div>
+        <div id="kaderGrid"></div>
+        <p class="info" id="kaderInfo" hidden></p>
+      </div>
+      <div class="card">
+        <h2>Aufgestellt <span id="lnCount2"></span></h2>
+        <p class="info" style="margin-top:0">Rückennummer stimmt heute nicht? Einfach ins Nummernfeld tippen und ändern.</p>
+        <div id="lineup"></div>
+        <label class="lbl" for="lnNewName">Spieler, der nicht im Kader steht</label>
+        <div class="lnAddRow">
+          <input type="text" inputmode="numeric" maxlength="3" id="lnNewNr" placeholder="Nr" aria-label="Rückennummer">
+          <input type="text" id="lnNewName" placeholder="Vor- und Nachname">
+          <button type="button" class="btn small primary" id="lnNewAdd">Hinzufügen</button>
+        </div>
+        <div class="btnrow"><button type="button" class="btn small danger" id="lnClear">Alle entfernen</button></div>
+      </div>
+      <details class="card">
+        <summary>Titel und Schlusszeile ändern</summary>
+        <div class="row2">
           <div><label class="lbl" for="aTitle">Titel</label><input type="text" id="aTitle" placeholder="STARTAUFSTELLUNG"></div>
           <div><label class="lbl" for="aFooter">Schlusszeile</label><input type="text" id="aFooter" placeholder="Auf geht's SVA"></div>
         </div>
-        <p class="info" id="kaderInfo"></p>
-        <div class="lnHead"><span>Nr.</span><span>Spieler</span><span></span></div>
-        <div id="lineup"></div>
-        <datalist id="kaderList"></datalist>
-        <div class="btnrow">
-          <button type="button" class="btn small" id="lnAdd">+ Spieler</button>
-          <button type="button" class="btn small" id="lnSort">Nach Nummer sortieren</button>
-          <button type="button" class="btn small danger" id="lnClear">Alle leeren</button>
-        </div>
-      </div>
+      </details>
     </div>
 
     <!-- Foto -->
@@ -781,7 +805,7 @@ function drawLineup(H){
 
   // Spielerliste: Nummer rechtsbündig | Strich | Name linksbündig – als Block mittig
   const L = getLineup();
-  let rows = L.rows.filter(r => (r.nr || '').trim() || (r.name || '').trim());
+  let rows = sortRows(L.rows.filter(r => (r.nr || '').trim() || (r.name || '').trim()));   // im Bild immer nach Nummer
   const demo = !rows.length;
   if (demo) rows = emptyRows(11).map(() => ({ nr:'00', name:'Spielername' }));
   const n = rows.length;
@@ -992,57 +1016,89 @@ $('addGame').addEventListener('click', () => {
 /* ================= Formular: Aufstellung ================= */
 const kaderOf = id => ((window.KADER || {})[nameOf(id)] || []);
 const emptyRows = n => Array.from({ length:n }, () => ({ nr:'', name:'' }));
+const MAX_SPIELER = 16;
+// Vorauswahl beim ersten Öffnen (danach wird immer die letzte Aufstellung gemerkt)
+const VORAUSWAHL = {
+  'b-sv-amtzell': [['1','Eduard Jacoban'],['2','Emil Matheis'],['5','Tinus Baumann'],['7','Moritz Hartmann'],['8','Aaron Wanner'],
+                   ['9','Ryan Goodman'],['10','Niklas Renz'],['12','Noah Keckeisen'],['22','Artun Balo'],['24','Jakob Schmitz'],['27','Julian Michalka']]
+};
+const sortRows = rows => rows.sort((a, b) =>
+  ((a.nr || '') === '' ? 999 : +a.nr) - ((b.nr || '') === '' ? 999 : +b.nr) || String(a.name).localeCompare(String(b.name), 'de'));
+const keyOf = s => String(s || '').trim().toLowerCase();
 function getLineup(){
   let L = S.lineups[S.lnOwnId];
   if (!L || !Array.isArray(L.rows)){
     const kurz = /SGM|SG /i.test(nameOf(S.lnOwnId)) ? 'SGM' : 'SVA';
-    L = S.lineups[S.lnOwnId] = { rows:emptyRows(11), footer:"Auf geht's " + kurz };
+    L = S.lineups[S.lnOwnId] = { rows:(VORAUSWAHL[S.lnOwnId] || []).map(([nr, name]) => ({ nr, name })), footer:"Auf geht's " + kurz };
   }
+  L.rows = L.rows.filter(r => keyOf(r.name));   // leere Zeilen aus älteren Versionen entfernen
   return L;
 }
+const POS_GRUPPEN = [['Torwart', /^tor/i], ['Abwehr', /^abw/i], ['Mittelfeld', /^mittel/i], ['Sturm', /^(sturm|angriff)/i]];
 function renderLineup(){
   const L = getLineup(), kader = kaderOf(S.lnOwnId);
-  $('kaderList').innerHTML = kader.map(p => '<option value="' + esc(p.name) + '">' +
-    esc((p.nr ? '#' + p.nr + ' · ' : '') + (p.pos || '')) + '</option>').join('');
-  $('kaderInfo').textContent = kader.length
-    ? kader.length + ' Spieler hinterlegt – Namen eintippen und aus der Liste wählen, die Nummer wird vorgeschlagen und kann geändert werden.'
-    : 'Für diese Mannschaft ist noch kein Kader hinterlegt – Nummern und Namen einfach eintippen.';
-  $('aFooter').value = L.footer || '';
-  $('lineup').innerHTML = L.rows.map((r, i) =>
+  const sel = new Set(L.rows.map(r => keyOf(r.name)));
+  const heuteNr = new Map(L.rows.map(r => [keyOf(r.name), r.nr]));   // ausgewählte Spieler zeigen die heutige Nummer
+  const groups = POS_GRUPPEN.map(([t, re]) => ({ t, list:kader.filter(p => re.test(p.pos || '')) }));
+  const rest = kader.filter(p => !POS_GRUPPEN.some(([, re]) => re.test(p.pos || '')));
+  if (rest.length) groups.push({ t:'Weitere', list:rest });
+  $('kaderGrid').innerHTML = groups.filter(g => g.list.length).map(g =>
+    '<div class="kGroup"><h3>' + g.t + '</h3><div class="kGrid">' + g.list.map(p =>
+      '<button type="button" class="kChip' + (sel.has(keyOf(p.name)) ? ' on' : '') + '" data-name="' + esc(p.name) + '" data-nr="' + esc(p.nr) + '" aria-pressed="' + sel.has(keyOf(p.name)) + '">' +
+      '<span class="nr">' + esc((sel.has(keyOf(p.name)) ? heuteNr.get(keyOf(p.name)) : p.nr) || '–') + '</span><span>' + esc(p.name) + '</span></button>').join('') + '</div></div>').join('');
+  $('kaderInfo').hidden = kader.length > 0;
+  $('kaderInfo').textContent = 'Für diese Mannschaft ist noch kein Kader hinterlegt – Spieler unten über „Hinzufügen“ eintragen.';
+  sortRows(L.rows);
+  const n = L.rows.length;
+  $('lnCount').textContent = n + ' von 11 ausgewählt' + (n > 11 ? ' – mehr als 11' : n === 11 ? ' ✓' : '');
+  $('lnCount').className = 'lnCount' + (n === 11 ? ' ok' : n > 11 ? ' warn' : '');
+  $('lnCount2').textContent = '(' + n + ')';
+  $('lineup').innerHTML = n ? L.rows.map((r, i) =>
     '<div class="lnRow" data-i="' + i + '">' +
-      '<input type="text" inputmode="numeric" maxlength="3" data-k="nr" placeholder="–" value="' + esc(r.nr) + '" aria-label="Nummer Spieler ' + (i + 1) + '">' +
-      '<input type="text" list="kaderList" data-k="name" placeholder="Spieler ' + (i + 1) + '" value="' + esc(r.name) + '" autocomplete="off">' +
-      '<button type="button" class="btn small x" data-act="del" title="Zeile entfernen" aria-label="Zeile entfernen">✕</button>' +
-    '</div>').join('');
-  $('lnAdd').hidden = L.rows.length >= 16;
+      '<input type="text" inputmode="numeric" maxlength="3" data-k="nr" placeholder="–" value="' + esc(r.nr) + '" aria-label="Rückennummer ' + esc(r.name) + '">' +
+      '<span class="lnName">' + esc(r.name) + '</span>' +
+      '<button type="button" class="btn small x" data-act="del" aria-label="' + esc(r.name) + ' entfernen">✕</button>' +
+    '</div>').join('') : '<p class="info" style="margin-top:4px">Noch niemand aufgestellt – oben Spieler antippen.</p>';
+  $('aFooter').value = L.footer || '';
 }
+function addPlayer(name, nr){
+  const L = getLineup();
+  if (L.rows.length >= MAX_SPIELER){ toast('Maximal ' + MAX_SPIELER + ' Spieler möglich.'); return false; }
+  L.rows.push({ nr:nr || '', name }); return true;
+}
+// Kader-Knopf antippen: aufstellen bzw. wieder entfernen
+$('kaderGrid').addEventListener('click', e => {
+  const b = e.target.closest('.kChip'); if (!b) return;
+  const L = getLineup(), k = keyOf(b.dataset.name), i = L.rows.findIndex(r => keyOf(r.name) === k);
+  if (i >= 0) L.rows.splice(i, 1); else if (!addPlayer(b.dataset.name, b.dataset.nr)) return;
+  renderLineup(); changed();
+});
+// Nummer ändern: beim Tippen nur übernehmen, beim Verlassen des Feldes neu sortieren
 $('lineup').addEventListener('input', e => {
-  const el = e.target, row = el.closest('.lnRow'); if (!row || !el.dataset.k) return;
+  const el = e.target, row = el.closest('.lnRow'); if (!row || el.dataset.k !== 'nr') return;
   const r = getLineup().rows[+row.dataset.i];
-  if (el.dataset.k === 'nr'){ r.nr = el.value.replace(/[^0-9]/g, '').slice(0, 3); if (el.value !== r.nr) el.value = r.nr; }
-  else {
-    r.name = el.value;
-    // Spieler aus dem Kader gewählt -> Nummer vorschlagen, wenn noch leer
-    const p = kaderOf(S.lnOwnId).find(x => x.name.toLowerCase() === el.value.trim().toLowerCase());
-    if (p && p.nr && !r.nr){ r.nr = p.nr; row.querySelector('[data-k="nr"]').value = p.nr; }
-  }
+  r.nr = el.value.replace(/[^0-9]/g, '').slice(0, 3); if (el.value !== r.nr) el.value = r.nr;
   changed();
 });
+$('lineup').addEventListener('change', e => { if (e.target.dataset.k === 'nr') renderLineup(); });
 $('lineup').addEventListener('click', e => {
   if (!e.target.closest('[data-act="del"]')) return;
-  const L = getLineup(); L.rows.splice(+e.target.closest('.lnRow').dataset.i, 1);
-  if (!L.rows.length) L.rows = emptyRows(1);
+  getLineup().rows.splice(+e.target.closest('.lnRow').dataset.i, 1);
   renderLineup(); changed();
 });
-$('lnAdd').addEventListener('click', () => { const L = getLineup(); if (L.rows.length < 16){ L.rows.push({ nr:'', name:'' }); renderLineup(); changed(); } });
-$('lnSort').addEventListener('click', () => {
-  const L = getLineup();
-  L.rows.sort((a, b) => (a.nr === '' ? 999 : +a.nr) - (b.nr === '' ? 999 : +b.nr));
-  renderLineup(); changed();
-});
+function addNew(){
+  const name = $('lnNewName').value.trim(), nr = $('lnNewNr').value.replace(/[^0-9]/g, '').slice(0, 3);
+  if (!name){ toast('Bitte den Namen eintragen.'); $('lnNewName').focus(); return; }
+  if (getLineup().rows.some(r => keyOf(r.name) === keyOf(name))){ toast(name + ' ist schon aufgestellt.'); return; }
+  if (!addPlayer(name, nr)) return;
+  $('lnNewName').value = ''; $('lnNewNr').value = '';
+  renderLineup(); changed(); toast(name + ' hinzugefügt.');
+}
+$('lnNewAdd').addEventListener('click', addNew);
+$('lnNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addNew(); });
 $('lnClear').addEventListener('click', () => {
   if (!confirm('Alle Spieler aus der Aufstellung entfernen?')) return;
-  getLineup().rows = emptyRows(11); renderLineup(); changed();
+  getLineup().rows = []; renderLineup(); changed();
 });
 $('aFooter').addEventListener('input', e => { getLineup().footer = e.target.value; changed(); });
 
