@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1419">
+<title>Spieltag-Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="vereine.js"></script>
+<style>
+:root{
+  --bg:#0f1419; --panel:#18212a; --panel2:#212c37; --line:#2e3b48;
+  --text:#eef2f5; --muted:#97a5b2; --accent:#2f80ed; --accent-h:#4a93f5; --danger:#e5534b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+.top{max-width:1240px;margin:0 auto;padding:18px 20px 4px}
+.top h1{margin:0;font-size:22px;font-weight:900;letter-spacing:.2px}
+.top p{margin:4px 0 0;color:var(--muted);font-size:13px;font-weight:600}
+.wrap{max-width:1240px;margin:0 auto;padding:14px 20px 48px;display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(340px,1fr);gap:26px;align-items:start}
+.preview{position:sticky;top:14px}
+.canvasBox{display:flex;justify-content:center;align-items:center;background:#05080b;border-radius:14px;
+  padding:10px;border:1px solid var(--line)}
+.canvasBox.drop{outline:3px dashed var(--accent);outline-offset:-8px}
+canvas#cv{display:block;width:auto;height:auto;max-width:100%;max-height:82vh;border-radius:6px;
+  touch-action:none;cursor:grab;box-shadow:0 10px 40px rgba(0,0,0,.55)}
+canvas#cv.grab{cursor:grabbing}
+.hint{color:var(--muted);font-size:12.5px;font-weight:600;text-align:center;margin:10px 4px 0;line-height:1.45}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 12px;font-size:12.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.lbl{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:12px 0 6px}
+.row2 .lbl{margin-top:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+input[type=text],input[type=date],input[type=time],input[type=number],select{width:100%;height:46px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel2);font-size:16px;font-weight:600;outline:none;appearance:none;-webkit-appearance:none}
+input[type=number]{text-align:center;font-size:20px;font-weight:800;-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 20px,calc(100% - 13px) 20px;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+input:focus,select:focus{border-color:var(--accent)}
+input[type=date],input[type=time]{color-scheme:dark}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;min-height:40px;padding:4px 6px;border:0;border-radius:8px;background:transparent;font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer;line-height:1.2}
+.seg button.on{background:var(--accent);color:#fff}
+.seg.big button{min-height:48px;font-size:14.5px}
+.seg + .seg{margin-top:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 18px;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel2);font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-h)}
+.btn.small{height:38px;font-size:13.5px;padding:0 14px}
+.btn.danger{color:var(--danger)}
+.btn.wide{width:100%;margin-top:4px}
+.btn input[type=file]{display:none}
+.filerow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:13px;font-weight:600}
+.range{display:flex;align-items:center;gap:12px;margin-top:6px}
+.range input{flex:1;accent-color:var(--accent);height:30px}
+.range output{min-width:44px;text-align:right;font-size:13px;font-weight:700;color:var(--muted)}
+.check{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;font-weight:600}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.btnrow{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.newClub{border:1px dashed var(--accent)}
+.newClub input[type=text]{background:var(--panel2)}
+.ncLogo{display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap}
+.ncLogo img{width:64px;height:64px;object-fit:contain;background:repeating-conic-gradient(#2a3540 0 25%,#202a34 0 50%) 0 0/14px 14px;border-radius:8px}
+.game{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}
+.game input[type=text],.game input[type=number],.game select{background-color:var(--panel)}
+.game .seg{background:var(--panel)}
+.gameHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.gameHead b{font-size:14px;font-weight:800}
+.score{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end;margin-top:12px}
+.score .colon{font-size:24px;font-weight:900;padding-bottom:8px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.actions .btn{flex:1;min-width:150px;height:52px;font-size:16px}
+details.card summary{cursor:pointer;font-size:12.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary::after{content:" +"}
+details.card[open] summary::after{content:" –"}
+.clubList{margin:12px 0 0;padding:0;list-style:none}
+.clubList li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px;font-weight:600}
+.clubList li img{width:34px;height:34px;object-fit:contain}
+.clubList li span{flex:1}
+.info{font-size:13px;line-height:1.55;color:var(--muted);font-weight:500;margin:12px 0 0}
+.info b{color:var(--text)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+  background:#0b1016;border:1px solid var(--line);color:var(--text);padding:12px 18px;border-radius:10px;font-size:14px;font-weight:700;
+  transition:.25s;z-index:30;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+[hidden]{display:none!important}
+
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr;gap:16px;padding:10px 16px 110px}
+  .top{padding:14px 16px 0}
+  .preview{position:static}
+  .canvasBox{padding:6px}
+  canvas#cv{max-height:60vh}
+  .actions{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(15,20,25,.94);backdrop-filter:blur(8px);border-top:1px solid var(--line)}
+  .actions .btn{min-width:0}
+  .toast{bottom:90px}
+}
+@media (max-width:420px){
+  .row2{grid-template-columns:1fr}
+  .seg button{font-size:12.5px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Spieltag-Generator</h1>
+  <p>Vorlage wählen, Gegner und Termin eintragen, Foto rein, speichern.</p>
+</header>
+
+<main class="wrap">
+  <section class="preview">
+    <div class="canvasBox" id="canvasBox"><canvas id="cv" width="1080" height="1080" aria-label="Vorschau"></canvas></div>
+    <p class="hint">Foto mit Maus oder Finger in der Vorschau verschieben.<br>Zoomen: Regler, Mausrad oder mit zwei Fingern. Am PC kann man ein Foto auch einfach auf die Vorschau ziehen.</p>
+  </section>
+
+  <section class="form">
+    <!-- Vorlage -->
+    <div class="card">
+      <h2>Vorlage</h2>
+      <div class="seg big" id="mode">
+        <button type="button" data-v="post">Post<br><small>Spieltag</small></button>
+        <button type="button" data-v="story">Story<br><small>Spieltag</small></button>
+        <button type="button" data-v="ergebnis">Story<br><small>Ergebnisse</small></button>
+      </div>
+      <div id="teamSel">
+        <span class="lbl">Mannschaft</span>
+        <div class="seg" id="ownSeg"></div>
+        <div class="seg" id="ha">
+          <button type="button" data-v="heim">Heimspiel</button>
+          <button type="button" data-v="aus">Auswärtsspiel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Neuer Gegner -->
+    <div class="card newClub" id="newClub" hidden>
+      <h2>Neuer Gegner</h2>
+      <div class="row2" style="margin-top:0">
+        <div><label class="lbl" for="ncName">Vereinsname</label><input type="text" id="ncName" placeholder="z. B. FC Wangen"></div>
+        <div><label class="lbl" for="ncOrt">Spielort des Gegners</label><input type="text" id="ncOrt" placeholder="z. B. Sportplatz Wangen"></div>
+      </div>
+      <div class="ncLogo">
+        <label class="btn small">Wappen wählen<input type="file" id="ncFile" accept="image/*"></label>
+        <img id="ncPrev" alt="" hidden>
+        <span class="muted" id="ncHint">PNG mit transparentem Hintergrund ist ideal.</span>
+      </div>
+      <label class="check"><input type="checkbox" id="ncKeep" checked> Auf diesem Gerät merken</label>
+      <div class="btnrow">
+        <button type="button" class="btn primary small" id="ncOk">Übernehmen</button>
+        <button type="button" class="btn small" id="ncCancel">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- Spieltag -->
+    <div id="matchForm">
+      <div class="card">
+        <h2>Gegner</h2>
+        <select id="opp" aria-label="Gegner"></select>
+        <div class="row2">
+          <div><label class="lbl" for="nameOwn">Name unsere Mannschaft</label><input type="text" id="nameOwn"></div>
+          <div><label class="lbl" for="nameOpp">Name Gegner</label><input type="text" id="nameOpp" placeholder="z. B. FV Waldburg II"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Termin</h2>
+        <div class="row2" style="margin-top:0">
+          <div><label class="lbl" for="date">Datum</label><input type="date" id="date"></div>
+          <div><label class="lbl" for="time">Anstoß</label><input type="time" id="time" step="300"></div>
+        </div>
+        <label class="lbl" for="ort">Ort</label>
+        <input type="text" id="ort" placeholder="wird automatisch vorgeschlagen">
+        <label class="lbl" for="title">Titel</label>
+        <input type="text" id="title" placeholder="SPIELTAG">
+      </div>
+    </div>
+
+    <!-- Ergebnisse -->
+    <div id="resultForm" hidden>
+      <div class="card">
+        <h2>Ergebnisse</h2>
+        <div class="row2" style="margin-top:0">
+          <div><label class="lbl" for="rTitle">Titel</label><input type="text" id="rTitle" placeholder="ERGEBNISSE"></div>
+          <div><label class="lbl" for="rSub">Untertitel</label><input type="text" id="rSub" placeholder="z. B. 15.11.2026"></div>
+        </div>
+        <div id="games"></div>
+        <button type="button" class="btn wide" id="addGame" style="margin-top:12px">+ Spiel hinzufügen</button>
+      </div>
+    </div>
+
+    <!-- Foto -->
+    <div class="card">
+      <h2>Hintergrundfoto</h2>
+      <div class="filerow">
+        <label class="btn primary">Foto wählen<input type="file" id="bgFile" accept="image/*"></label>
+        <span class="muted" id="bgName">noch kein Foto</span>
+      </div>
+      <label class="lbl" for="zoom">Zoom</label>
+      <div class="range"><input type="range" id="zoom" min="1" max="4" step="0.01" value="1"><output id="zoomOut">100 %</output></div>
+      <label class="lbl" for="dark">Abdunkeln</label>
+      <div class="range"><input type="range" id="dark" min="0" max="1" step="0.01" value="0.55"><output id="darkOut">55 %</output></div>
+      <label class="check"><input type="checkbox" id="diag" checked> Diagonaler Schleier (wie in der Vorlage)</label>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" id="btnShare" hidden>Teilen / in Fotos sichern</button>
+      <button type="button" class="btn" id="btnDl">Bild herunterladen</button>
+    </div>
+
+    <details class="card" style="margin-top:14px">
+      <summary>Gegner auf diesem Gerät</summary>
+      <ul class="clubList" id="clubList"></ul>
+      <p class="info" id="clubEmpty">Noch keine eigenen Gegner gespeichert. Im Gegner-Feld <b>„+ Neuen Gegner anlegen“</b> wählen, um einen Verein mit Wappen hinzuzufügen.</p>
+      <p class="info">Hier gespeicherte Gegner gibt es nur in diesem Browser auf diesem Gerät. Damit ein Verein für <b>alle</b> erscheint, das Wappen in den Ordner <b>wappen</b> legen, die Zeile in <b>vereine.csv</b> ergänzen und <b>Vereinsliste-aktualisieren.bat</b> starten (siehe ANLEITUNG.txt).</p>
+    </details>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= Hilfsfunktionen ================= */
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+};
+const KEY_STATE = 'spieltag.state.v2';
+const KEY_CLUBS = 'spieltag.vereine.v1';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const slug = s => String(s || '').toLowerCase().replace(/ß/g,'ss').normalize('NFD').replace(/[̀-ͯ]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+let toastT = 0;
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800);
+}
+const pad = n => String(n).padStart(2, '0');
+const isoOf = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+function fmtDate(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? m[3] + '.' + m[2] + '.' + m[1] : (iso || '');
+}
+
+/* ================= Vereine ================= */
+const builtIn = (Array.isArray(window.VEREINE) ? window.VEREINE : [])
+  .filter(v => v && v.name)
+  .map(v => ({ id:'b-' + slug(v.name), name:String(v.name), spielort:v.spielort || '', eigen:!!v.eigen,
+               wappen:v.wappen || null, skala:+v.skala || 1, lokal:false }));
+let custom = LS.get(KEY_CLUBS, []).filter(c => c && c.id && c.name)
+  .map(c => ({ id:c.id, name:c.name, spielort:c.spielort || '', eigen:false, wappen:c.wappen || null, skala:1, lokal:true, keep:true }));
+let ownList = builtIn.filter(c => c.eigen);
+if (!ownList.length){
+  ownList = [
+    { id:'b-sv-amtzell', name:'SV Amtzell', spielort:'Stadion Amtzell', eigen:true, wappen:null, skala:1, lokal:false },
+    { id:'b-sgm-amtzell-haslach', name:'SGM Amtzell/Haslach', spielort:'Stadion Amtzell', eigen:true, wappen:null, skala:1, lokal:false }
+  ];
+  builtIn.push(...ownList);
+}
+const allClubs = () => builtIn.concat(custom);
+const club = id => allClubs().find(c => c.id === id) || null;
+const opponents = () => allClubs().filter(c => !c.eigen).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+const nameOf = id => { const c = club(id); return c ? c.name : ''; };
+
+/* ================= Wappen aufbereiten ================= */
+// schneidet leeren Rand ab und entfernt weißen Hintergrund bei JPGs
+function processLogo(img){
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const k = Math.min(1, 600 / Math.max(iw, ih));
+  const w = Math.max(1, Math.round(iw * k)), h = Math.max(1, Math.round(ih * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently:true });
+  x.drawImage(img, 0, 0, w, h);
+  let d;
+  try { d = x.getImageData(0, 0, w, h); } catch(e){ return c; }
+  const p = d.data;
+  let transparent = false;
+  for (let i = 3; i < p.length; i += 4){ if (p[i] < 200){ transparent = true; break; } }
+  if (!transparent && p[0] + p[1] + p[2] > 600){
+    const r0 = p[0], g0 = p[1], b0 = p[2];
+    const near = i => Math.abs(p[i] - r0) + Math.abs(p[i+1] - g0) + Math.abs(p[i+2] - b0) < 60;
+    const seen = new Uint8Array(w * h), st = [];
+    for (let X = 0; X < w; X++) st.push(X, (h - 1) * w + X);
+    for (let Y = 0; Y < h; Y++) st.push(Y * w, Y * w + w - 1);
+    while (st.length){
+      const q = st.pop(); if (seen[q]) continue; seen[q] = 1;
+      const i = q * 4; if (!near(i)) continue;
+      p[i + 3] = 0;
+      const X = q % w, Y = (q - X) / w;
+      if (X > 0) st.push(q - 1); if (X < w - 1) st.push(q + 1);
+      if (Y > 0) st.push(q - w); if (Y < h - 1) st.push(q + w);
+    }
+    x.putImageData(d, 0, 0);
+  }
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let Y = 0; Y < h; Y++) for (let X = 0; X < w; X++){
+    if (p[(Y * w + X) * 4 + 3] > 20){
+      if (X < minX) minX = X; if (X > maxX) maxX = X;
+      if (Y < minY) minY = Y; if (Y > maxY) maxY = Y;
+    }
+  }
+  if (maxX < 0) return c;
+  const tw = maxX - minX + 1, th = maxY - minY + 1;
+  const t = document.createElement('canvas'); t.width = tw; t.height = th;
+  t.getContext('2d').drawImage(c, minX, minY, tw, th, 0, 0, tw, th);
+  return t;
+}
+const logoCache = new Map();
+function getLogo(c){
+  if (!c || !c.wappen) return null;
+  const v = logoCache.get(c.id);
+  if (v !== undefined) return v === 'loading' ? null : v;
+  logoCache.set(c.id, 'loading');
+  loadImg(c.wappen).then(img => { logoCache.set(c.id, processLogo(img)); scheduleDraw(); })
+                   .catch(() => logoCache.set(c.id, null));
+  return null;
+}
+
+/* ================= Zustand ================= */
+const today = isoOf(new Date());
+const firstOpp = () => { const o = opponents()[0]; return o ? o.id : ''; };
+function newGame(ownId){
+  const o = firstOpp();
+  return { ownId, oppId:o, heim:true, nameOwn:nameOf(ownId), nameOpp:nameOf(o), gOwn:'', gOpp:'' };
+}
+const S = Object.assign({
+  mode:'post', ownId:ownList[0].id, oppId:'', heim:true, nameOwn:'', nameOpp:'',
+  date:today, time:'14:30', ort:'', title:'SPIELTAG',
+  rTitle:'ERGEBNISSE', rSub:fmtDate(today), games:null,
+  dark:0.55, diag:true
+}, LS.get(KEY_STATE, {}));
+if (!['post','story','ergebnis'].includes(S.mode)) S.mode = 'post';
+if (!club(S.ownId) || !club(S.ownId).eigen) S.ownId = ownList[0].id;
+if (!club(S.oppId)) S.oppId = firstOpp();
+if (!S.nameOwn) S.nameOwn = nameOf(S.ownId);
+if (!S.nameOpp) S.nameOpp = nameOf(S.oppId);
+if (!S.ort){ const c = club(S.heim ? S.ownId : S.oppId); S.ort = c ? c.spielort : ''; }
+if (!Array.isArray(S.games) || !S.games.length) S.games = ownList.slice(0, 2).map(c => newGame(c.id));
+S.games.forEach(g => {
+  if (!club(g.ownId) || !club(g.ownId).eigen) g.ownId = ownList[0].id;
+  if (!club(g.oppId)) g.oppId = firstOpp();
+});
+S.zoom = 1; S.offX = 0; S.offY = 0;   // Foto wird nicht gespeichert
+
+let saveT = 0;
+function saveState(){
+  clearTimeout(saveT);
+  saveT = setTimeout(() => { const { zoom, offX, offY, ...rest } = S; LS.set(KEY_STATE, rest); }, 300);
+}
+
+/* ================= Zeichnen ================= */
+const W = 1080;
+const cv = $('cv'), ctx = cv.getContext('2d');
+const FONT = 'Inter, "Helvetica Neue", Arial, sans-serif';
+let bgCanvas = null, drawVer = 0;
+const heightOf = () => S.mode === 'post' ? 1080 : 1920;
+
+function bgDims(H){
+  const s = Math.max(W / bgCanvas.width, H / bgCanvas.height) * S.zoom;
+  return { dw:bgCanvas.width * s, dh:bgCanvas.height * s };
+}
+function clampOff(H){
+  if (!bgCanvas) return;
+  const { dw, dh } = bgDims(H);
+  const mx = (dw - W) / 2, my = (dh - H) / 2;
+  S.offX = clamp(S.offX, -mx, mx); S.offY = clamp(S.offY, -my, my);
+}
+function drawBg(H){
+  if (bgCanvas){
+    clampOff(H);
+    const { dw, dh } = bgDims(H);
+    ctx.drawImage(bgCanvas, (W - dw) / 2 + S.offX, (H - dh) / 2 + S.offY, dw, dh);
+    return;
+  }
+  for (let x = 0, i = 0; x < W; x += 108, i++){
+    ctx.fillStyle = i % 2 ? '#2e6a35' : '#367a3d'; ctx.fillRect(x, 0, 108, H);
+  }
+  const r = ctx.createRadialGradient(W / 2, H * 0.4, 50, W / 2, H * 0.45, H * 0.9);
+  r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
+}
+function drawDiag(H){
+  if (!S.diag) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(W * 0.29, 0); ctx.lineTo(W * 0.62, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,.11)'; ctx.fill();
+  ctx.restore();
+}
+const hasLS = 'letterSpacing' in ctx;
+function setFont(size, weight){ ctx.font = weight + ' ' + size + 'px ' + FONT; }
+function txt(s, x, y, o){
+  if (!s) return;
+  let size = o.size; const weight = o.weight || 700, sp = o.sp || 0;
+  if (hasLS) ctx.letterSpacing = sp + 'px';
+  setFont(size, weight);
+  const maxW = o.maxW || Infinity;
+  while (ctx.measureText(s).width > maxW && size > 12){ size -= 1; setFont(size, weight); }
+  const dx = hasLS ? sp / 2 : 0;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = o.color || '#fff';
+  ctx.save();
+  if (o.sh === 2){
+    // kräftiger Schlagschatten wie beim SPIELTAG-Titel der Vorlage
+    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 26; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 10;
+    ctx.fillText(s, x + dx, y);
+    ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 4;
+  } else if (o.sh !== 0){
+    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 2;
+  }
+  ctx.fillText(s, x + dx, y);
+  ctx.restore();
+  if (hasLS) ctx.letterSpacing = '0px';
+}
+function initials(name){
+  const w = String(name || '?').split(/[\s/.-]+/).filter(x => x && !/^(I|II|III|1|2)$/.test(x));
+  const main = w.filter(x => !/^(SV|FV|TSV|FC|SC|SGM|SG|SPVGG|TSG|VFB|VFL|TUS|SPFR)$/i.test(x))[0] || w[0] || '?';
+  return main.slice(0, 2).toUpperCase();
+}
+// Wappen in einheitlicher optischer Größe (gleiche Fläche, begrenzte Breite/Höhe)
+function drawLogo(c, cx, cy, fallbackName, k){
+  const logo = getLogo(c);
+  if (logo){
+    const w = logo.width, h = logo.height;
+    let s = Math.sqrt((168 * 168) / (w * h));
+    s = Math.min(s, 235 / w, 182 / h) * ((c && c.skala) || 1) * k;
+    const dw = w * s, dh = h * s;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 18 * k; ctx.shadowOffsetY = 4 * k;
+    ctx.drawImage(logo, cx - dw / 2, cy - dh / 2, dw, dh);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, 80 * k, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fill();
+    ctx.lineWidth = 5 * k; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke();
+    ctx.restore();
+    txt(initials(fallbackName || (c && c.name)), cx, cy + 2 * k, { size:58 * k, weight:900, maxW:130 * k });
+  }
+}
+function sides(g){
+  const own = club(g.ownId), opp = club(g.oppId);
+  return g.heim
+    ? { L:{ c:own, n:g.nameOwn, goals:g.gOwn }, R:{ c:opp, n:g.nameOpp, goals:g.gOpp } }
+    : { L:{ c:opp, n:g.nameOpp, goals:g.gOpp }, R:{ c:own, n:g.nameOwn, goals:g.gOwn } };
+}
+
+// Spieltag-Ankündigung (Post 1080×1080 / Story 1080×1920) – Maße aus der Kittl-Vorlage
+function drawMatch(H){
+  const story = H > 1080;
+  const k = story ? 1.18 : 1;
+  const y0 = story ? 860 : 500;            // Mitte der Wappen
+  ctx.fillStyle = 'rgba(0,0,0,' + (S.dark * 0.22) + ')'; ctx.fillRect(0, 0, W, H);
+  drawDiag(H);
+  const gTop = y0 - 260 * k;
+  const g = ctx.createLinearGradient(0, gTop, 0, H);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(0.5, 'rgba(0,0,0,' + (S.dark * 0.5) + ')');
+  g.addColorStop(1, 'rgba(0,0,0,' + Math.min(0.9, S.dark * 1.2) + ')');
+  ctx.fillStyle = g; ctx.fillRect(0, gTop, W, H - gTop);
+
+  const { L, R } = sides(S);
+  const xL = W / 2 - 177 * k, xR = W / 2 + 177 * k;
+  drawLogo(L.c, xL, y0, L.n, k);
+  drawLogo(R.c, xR, y0, R.n, k);
+  txt('vs.', W / 2, y0 + 10 * k, { size:46 * k, weight:800 });
+  txt((L.n || '').toUpperCase(), xL, y0 + 135 * k, { size:25 * k, weight:600, maxW:320 * k, sp:0.5 });
+  txt((R.n || '').toUpperCase(), xR, y0 + 135 * k, { size:25 * k, weight:600, maxW:320 * k, sp:0.5 });
+  txt((S.title || '').toUpperCase(), W / 2, y0 + 312 * k, { size:142 * k, weight:900, maxW:W * 0.74, sp:-1, sh:2 });
+  const dt = [fmtDate(S.date), S.time].filter(Boolean).join('   ');
+  txt(dt, W / 2, y0 + 412 * k, { size:30 * k, weight:500, maxW:W - 120 });
+  txt((S.ort || '').toUpperCase(), W / 2, y0 + 461 * k, { size:30 * k, weight:600, maxW:W - 120 });
+}
+
+function roundRect(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+// Ergebnisse des Spieltags (Story 1080×1920)
+function drawResults(H){
+  ctx.fillStyle = 'rgba(0,0,0,' + (0.15 + S.dark * 0.55) + ')'; ctx.fillRect(0, 0, W, H);
+  drawDiag(H);
+  txt((S.rTitle || '').toUpperCase(), W / 2, 330, { size:150, weight:900, maxW:W * 0.84, sp:-1, sh:2 });
+  txt((S.rSub || '').toUpperCase(), W / 2, 445, { size:36, weight:600, maxW:W - 140, sp:2 });
+
+  const games = S.games, n = games.length;
+  const top = 540, avail = 1040, gap = 34;
+  const rowH = Math.min(320, (avail - (n - 1) * gap) / n);
+  let y = top + (avail - (n * rowH + (n - 1) * gap)) / 2;
+  const k = Math.min(1, rowH / 320);
+  games.forEach(g => {
+    const { L, R } = sides(g);
+    ctx.save();
+    roundRect(60, y, W - 120, rowH, 26);
+    ctx.fillStyle = 'rgba(8,12,16,.55)'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.stroke();
+    ctx.restore();
+    const ly = y + rowH * 0.42, ny = y + rowH * 0.84;
+    const xL = 245, xR = W - 245, lk = 0.86 * k;
+    drawLogo(L.c, xL, ly, L.n, lk);
+    drawLogo(R.c, xR, ly, R.n, lk);
+    txt((L.n || '').toUpperCase(), xL, ny, { size:24 * Math.max(k, 0.8), weight:600, maxW:330, sp:0.5 });
+    txt((R.n || '').toUpperCase(), xR, ny, { size:24 * Math.max(k, 0.8), weight:600, maxW:330, sp:0.5 });
+    const a = String(L.goals === '' || L.goals == null ? '–' : L.goals);
+    const b = String(R.goals === '' || R.goals == null ? '–' : R.goals);
+    txt(a + ' : ' + b, W / 2, ly + 6 * k, { size:118 * k, weight:900, maxW:300, sh:2 });
+    y += rowH + gap;
+  });
+}
+
+function draw(){
+  drawVer++;
+  const H = heightOf();
+  if (cv.width !== W) cv.width = W;
+  if (cv.height !== H) cv.height = H;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  drawBg(H);
+  if (S.mode === 'ergebnis') drawResults(H); else drawMatch(H);
+}
+let raf = 0;
+function scheduleDraw(){
+  if (raf) return;
+  raf = requestAnimationFrame(() => { raf = 0; draw(); queueBlob(); });
+}
+function changed(){ scheduleDraw(); saveState(); }
+
+/* ================= Export ================= */
+let blobCache = null, blobT = 0;
+function queueBlob(){
+  blobCache = null; clearTimeout(blobT);
+  blobT = setTimeout(() => { const v = drawVer; cv.toBlob(b => { if (v === drawVer) blobCache = b; }, 'image/jpeg', 0.93); }, 350);
+}
+function makeBlob(){
+  if (raf){ cancelAnimationFrame(raf); raf = 0; }
+  draw();
+  return new Promise(res => cv.toBlob(res, 'image/jpeg', 0.93));
+}
+function fileName(){
+  const t = s => String(s || '').replace(/ß/g,'ss').normalize('NFD').replace(/[̀-ͯ]/g,'')
+                 .replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  if (S.mode === 'ergebnis') return ['Ergebnisse', t(S.rSub) || S.date].filter(Boolean).join('_') + '.jpg';
+  const { L, R } = sides(S);
+  return [S.mode === 'story' ? 'Story' : 'Post', S.date, t(L.n), 'vs', t(R.n)].filter(Boolean).join('_') + '.jpg';
+}
+$('btnDl').addEventListener('click', async () => {
+  const b = await makeBlob();
+  if (!b){ toast('Bild konnte nicht erzeugt werden.'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = fileName();
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+  toast('Gespeichert: ' + a.download);
+});
+(function initShare(){
+  let ok = false;
+  try { ok = !!(navigator.canShare && navigator.canShare({ files:[new File(['x'], 'x.jpg', { type:'image/jpeg' })] })); } catch(e){}
+  if (!ok) return;
+  $('btnShare').hidden = false;
+  $('btnShare').addEventListener('click', async () => {
+    const b = blobCache || await makeBlob();
+    const f = new File([b], fileName(), { type:'image/jpeg' });
+    try { await navigator.share({ files:[f] }); }
+    catch(e){ if (e && e.name !== 'AbortError') toast('Teilen hat nicht geklappt – bitte nochmal tippen.'); }
+  });
+})();
+
+/* ================= Formular: Vorlage ================= */
+function segMark(el, val){ el.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(val))); }
+function updateModeUI(){
+  segMark($('mode'), S.mode);
+  const res = S.mode === 'ergebnis';
+  $('teamSel').hidden = res; $('matchForm').hidden = res; $('resultForm').hidden = !res;
+  segMark($('ownSeg'), S.ownId); segMark($('ha'), S.heim ? 'heim' : 'aus');
+}
+$('ownSeg').innerHTML = ownList.map(c => '<button type="button" data-v="' + esc(c.id) + '">' + esc(c.name) + '</button>').join('');
+$('mode').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.mode = b.dataset.v; S.offX = 0; S.offY = 0; updateModeUI(); changed();
+});
+$('ownSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.ownId = b.dataset.v; S.nameOwn = nameOf(S.ownId); $('nameOwn').value = S.nameOwn;
+  autoOrt(); updateModeUI(); changed();
+});
+$('ha').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.heim = b.dataset.v === 'heim'; autoOrt(); updateModeUI(); changed();
+});
+function autoOrt(){
+  const c = club(S.heim ? S.ownId : S.oppId);
+  S.ort = c && c.spielort ? c.spielort : ''; $('ort').value = S.ort;
+}
+
+/* ================= Formular: Spieltag ================= */
+function oppOptions(sel){
+  const opps = opponents();
+  return (opps.length ? '' : '<option value="" disabled' + (sel ? '' : ' selected') + '>– noch keine Gegner –</option>') +
+    opps.map(c => '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' +
+      esc(c.name) + (c.lokal ? ' (dieses Gerät)' : '') + '</option>').join('') +
+    '<option value="__new">+ Neuen Gegner anlegen …</option>';
+}
+function fillOpp(){ $('opp').innerHTML = oppOptions(S.oppId); $('opp').value = S.oppId || ''; }
+$('opp').addEventListener('change', e => {
+  const v = e.target.value;
+  if (v === '__new'){ openNew({ type:'main' }); return; }
+  closeNew();
+  S.oppId = v; S.nameOpp = nameOf(v); $('nameOpp').value = S.nameOpp;
+  if (!S.heim) autoOrt();
+  changed();
+});
+[['nameOwn','nameOwn'],['nameOpp','nameOpp'],['date','date'],['time','time'],['ort','ort'],['title','title'],['rTitle','rTitle'],['rSub','rSub']]
+  .forEach(([id, k]) => {
+    const el = $(id); el.value = S[k] || '';
+    el.addEventListener('input', () => { S[k] = el.value; changed(); });
+  });
+
+/* ================= Formular: Ergebnisse ================= */
+function renderGames(){
+  $('games').innerHTML = S.games.map((g, i) =>
+    '<div class="game" data-i="' + i + '">' +
+      '<div class="gameHead"><b>Spiel ' + (i + 1) + '</b>' +
+        (S.games.length > 1 ? '<button type="button" class="btn small danger" data-act="del">Entfernen</button>' : '') + '</div>' +
+      '<div class="seg" data-k="ownId">' + ownList.map(c => '<button type="button" data-v="' + esc(c.id) + '"' +
+        (c.id === g.ownId ? ' class="on"' : '') + '>' + esc(c.name) + '</button>').join('') + '</div>' +
+      '<div class="seg" data-k="heim"><button type="button" data-v="heim"' + (g.heim ? ' class="on"' : '') + '>Heim</button>' +
+        '<button type="button" data-v="aus"' + (!g.heim ? ' class="on"' : '') + '>Auswärts</button></div>' +
+      '<label class="lbl">Gegner</label><select data-k="oppId">' + oppOptions(g.oppId) + '</select>' +
+      '<div class="row2"><div><label class="lbl">Name unsere Mannschaft</label><input type="text" data-k="nameOwn" value="' + esc(g.nameOwn) + '"></div>' +
+        '<div><label class="lbl">Name Gegner</label><input type="text" data-k="nameOpp" value="' + esc(g.nameOpp) + '"></div></div>' +
+      '<div class="score"><div><label class="lbl">Tore ' + esc(g.nameOwn || 'wir') + '</label>' +
+        '<input type="number" inputmode="numeric" min="0" max="99" data-k="gOwn" value="' + esc(g.gOwn) + '"></div>' +
+        '<span class="colon">:</span>' +
+        '<div><label class="lbl">Tore Gegner</label><input type="number" inputmode="numeric" min="0" max="99" data-k="gOpp" value="' + esc(g.gOpp) + '"></div></div>' +
+    '</div>').join('');
+  $('addGame').hidden = S.games.length >= 4;
+}
+$('games').addEventListener('click', e => {
+  const box = e.target.closest('.game'); if (!box) return;
+  const g = S.games[+box.dataset.i];
+  if (e.target.closest('[data-act="del"]')){ S.games.splice(+box.dataset.i, 1); renderGames(); changed(); return; }
+  const b = e.target.closest('.seg button'); if (!b) return;
+  const k = b.parentElement.dataset.k;
+  if (k === 'ownId'){ g.ownId = b.dataset.v; g.nameOwn = nameOf(g.ownId); }
+  if (k === 'heim') g.heim = b.dataset.v === 'heim';
+  renderGames(); changed();
+});
+$('games').addEventListener('change', e => {
+  const el = e.target; if (el.dataset.k !== 'oppId') return;
+  const i = +el.closest('.game').dataset.i, g = S.games[i];
+  if (el.value === '__new'){ openNew({ type:'game', i }); return; }
+  g.oppId = el.value; g.nameOpp = nameOf(el.value);
+  renderGames(); changed();
+});
+$('games').addEventListener('input', e => {
+  const el = e.target, k = el.dataset.k; if (!k || el.tagName === 'SELECT') return;
+  const g = S.games[+el.closest('.game').dataset.i];
+  g[k] = k === 'gOwn' || k === 'gOpp' ? el.value.replace(/[^0-9]/g, '').slice(0, 2) : el.value;
+  changed();
+});
+$('addGame').addEventListener('click', () => {
+  if (S.games.length >= 4) return;
+  const used = S.games.map(g => g.ownId);
+  const next = ownList.find(c => !used.includes(c.id)) || ownList[0];
+  S.games.push(newGame(next.id)); renderGames(); changed();
+});
+
+/* ================= Hintergrundfoto ================= */
+function syncRanges(){
+  $('zoom').value = S.zoom; $('zoomOut').textContent = Math.round(S.zoom * 100) + ' %';
+  $('dark').value = S.dark; $('darkOut').textContent = Math.round(S.dark * 100) + ' %';
+  $('diag').checked = !!S.diag;
+}
+$('zoom').addEventListener('input', e => { S.zoom = +e.target.value; syncRanges(); scheduleDraw(); });
+$('dark').addEventListener('input', e => { S.dark = +e.target.value; syncRanges(); changed(); });
+$('diag').addEventListener('change', e => { S.diag = e.target.checked; changed(); });
+async function setBackground(file){
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImg(url);
+    const k = Math.min(1, 2600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    bgCanvas = c; S.zoom = 1; S.offX = 0; S.offY = 0; syncRanges();
+    $('bgName').textContent = file.name || 'Foto geladen';
+    scheduleDraw();
+  } catch(err){
+    toast('Dieses Bild kann der Browser nicht öffnen. Bitte JPG oder PNG verwenden.');
+  } finally { URL.revokeObjectURL(url); }
+}
+$('bgFile').addEventListener('change', e => { setBackground(e.target.files[0]); e.target.value = ''; });
+const box = $('canvasBox');
+box.addEventListener('dragover', e => { e.preventDefault(); box.classList.add('drop'); });
+box.addEventListener('dragleave', () => box.classList.remove('drop'));
+box.addEventListener('drop', e => {
+  e.preventDefault(); box.classList.remove('drop');
+  const f = [...(e.dataTransfer.files || [])].find(f => /^image\//.test(f.type));
+  if (f) setBackground(f);
+});
+const ptrs = new Map(); let pinch = null;
+const pdist = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+cv.addEventListener('pointerdown', e => {
+  if (!bgCanvas) return;
+  cv.setPointerCapture(e.pointerId); cv.classList.add('grab');
+  ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if (ptrs.size === 2) pinch = { d:pdist(), zoom:S.zoom };
+});
+cv.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const k = cv.width / cv.getBoundingClientRect().width;
+  if (ptrs.size === 1){ S.offX += (e.clientX - p.x) * k; S.offY += (e.clientY - p.y) * k; }
+  p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 2 && pinch){ S.zoom = clamp(pinch.zoom * pdist() / pinch.d, 1, 4); syncRanges(); }
+  scheduleDraw();
+});
+const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) cv.classList.remove('grab'); };
+cv.addEventListener('pointerup', endPtr);
+cv.addEventListener('pointercancel', endPtr);
+cv.addEventListener('wheel', e => {
+  if (!bgCanvas) return;
+  e.preventDefault();
+  S.zoom = clamp(S.zoom * (e.deltaY < 0 ? 1.06 : 1 / 1.06), 1, 4); syncRanges(); scheduleDraw();
+}, { passive:false });
+cv.addEventListener('click', () => { if (!bgCanvas) $('bgFile').click(); });
+
+/* ================= Neuer Gegner ================= */
+let ncLogo = null, ncTarget = null;
+function openNew(target){
+  ncTarget = target; ncLogo = null;
+  $('newClub').hidden = false;
+  $('ncName').value = ''; $('ncOrt').value = ''; $('ncPrev').hidden = true;
+  $('ncHint').textContent = 'PNG mit transparentem Hintergrund ist ideal.';
+  $('newClub').scrollIntoView({ behavior:'smooth', block:'center' });
+  setTimeout(() => $('ncName').focus({ preventScroll:true }), 300);
+}
+function closeNew(){ $('newClub').hidden = true; ncTarget = null; }
+$('ncFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const url = URL.createObjectURL(f);
+  try {
+    const c = processLogo(await loadImg(url));
+    const k = Math.min(1, 500 / Math.max(c.width, c.height));
+    const o = document.createElement('canvas');
+    o.width = Math.max(1, Math.round(c.width * k)); o.height = Math.max(1, Math.round(c.height * k));
+    o.getContext('2d').drawImage(c, 0, 0, o.width, o.height);
+    ncLogo = { canvas:o, data:o.toDataURL('image/png') };
+    $('ncPrev').src = ncLogo.data; $('ncPrev').hidden = false; $('ncHint').textContent = f.name;
+  } catch(err){ toast('Wappen konnte nicht geladen werden.'); }
+  finally { URL.revokeObjectURL(url); }
+});
+$('ncCancel').addEventListener('click', () => { closeNew(); fillOpp(); renderGames(); });
+$('ncOk').addEventListener('click', () => {
+  const name = $('ncName').value.trim();
+  if (!name){ toast('Bitte den Vereinsnamen eintragen.'); $('ncName').focus(); return; }
+  const c = { id:'c-' + Date.now().toString(36), name, spielort:$('ncOrt').value.trim(), eigen:false,
+              wappen:ncLogo ? ncLogo.data : null, skala:1, lokal:true, keep:$('ncKeep').checked };
+  custom.push(c);
+  if (ncLogo) logoCache.set(c.id, ncLogo.canvas);
+  if (c.keep && !persistCustom()) toast('Speicher voll – der Gegner gilt nur bis zum Schließen der Seite.');
+  else toast(c.keep ? 'Gegner gespeichert.' : 'Gegner übernommen (nicht gespeichert).');
+  const t = ncTarget || { type:'main' };
+  if (t.type === 'game' && S.games[t.i]){ S.games[t.i].oppId = c.id; S.games[t.i].nameOpp = c.name; }
+  else { S.oppId = c.id; S.nameOpp = c.name; $('nameOpp').value = c.name; if (!S.heim) autoOrt(); }
+  closeNew(); fillOpp(); renderGames(); renderClubList(); changed();
+});
+function persistCustom(){
+  return LS.set(KEY_CLUBS, custom.filter(c => c.keep).map(({ id, name, spielort, wappen }) => ({ id, name, spielort, wappen })));
+}
+function renderClubList(){
+  const list = custom.filter(c => c.keep);
+  $('clubEmpty').hidden = list.length > 0;
+  $('clubList').innerHTML = list.map(c =>
+    '<li>' + (c.wappen ? '<img src="' + esc(c.wappen) + '" alt="">' : '') +
+    '<span>' + esc(c.name) + (c.spielort ? ' <span class="muted">· ' + esc(c.spielort) + '</span>' : '') + '</span>' +
+    '<button type="button" class="btn small danger" data-del="' + esc(c.id) + '">Löschen</button></li>').join('');
+}
+$('clubList').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  const c = club(b.dataset.del); if (!c) return;
+  if (!confirm('„' + c.name + '“ von diesem Gerät löschen?')) return;
+  custom = custom.filter(x => x.id !== c.id); persistCustom(); logoCache.delete(c.id);
+  const fb = firstOpp();
+  if (S.oppId === c.id){ S.oppId = fb; S.nameOpp = nameOf(fb); $('nameOpp').value = S.nameOpp; }
+  S.games.forEach(g => { if (g.oppId === c.id){ g.oppId = fb; g.nameOpp = nameOf(fb); } });
+  fillOpp(); renderGames(); renderClubList(); changed();
+});
+
+/* ================= Start ================= */
+fillOpp(); renderGames(); renderClubList(); syncRanges(); updateModeUI();
+draw();
+if (document.fonts){
+  Promise.all(['500','600','700','800','900'].map(w => document.fonts.load(w + ' 40px Inter'))).catch(() => {}).then(scheduleDraw);
+  document.fonts.ready.then(scheduleDraw);
+}
+})();
+</script>
+</body>
+</html>

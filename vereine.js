@@ -1,0 +1,2 @@
+/* Automatisch erzeugt aus vereine.csv - nicht von Hand bearbeiten */
+window.VEREINE = [{"name":"SV Amtzell","spielort":"Stadion Amtzell","eigen":true,"skala":1,"wappen":null},{"name":"SGM Amtzell/Haslach","spielort":"Stadion Amtzell","eigen":true,"skala":1,"wappen":null},{"name":"TSV Oberreitnau","spielort":"Sportplatz Oberreitnau","eigen":false,"skala":1,"wappen":null},{"name":"FV Waldburg","spielort":"","eigen":false,"skala":1,"wappen":null}];
