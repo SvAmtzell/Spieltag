@@ -75,6 +75,15 @@ body.dragging .dropOverlay{display:flex}
 .kChip:hover{border-color:var(--muted)}
 .kChip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .kChip.on .nr{background:rgba(255,255,255,.22);color:#fff}
+.kChip.bank{background:rgba(249,173,26,.16);border-color:#f9ad1a;color:#fff}
+.kChip.bank .nr{background:#f9ad1a;color:#1a1a1a}
+#lnPick button.on[data-v=bank]{background:#f9ad1a;color:#1a1a1a}
+.lnCount.bank{background:rgba(249,173,26,.18);color:#f9ad1a}
+.leg{font-weight:800;padding:0 6px;border-radius:5px}
+.leg.start{background:var(--accent);color:#fff}
+.leg.bank{background:#f9ad1a;color:#1a1a1a}
+.subh{margin:14px 0 2px;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--accent-h)}
+.subh.bank{color:#f9ad1a}
 @media (max-width:420px){ .kGrid{grid-template-columns:1fr 1fr} .kChip{font-size:13px} }
 .lnRow input[type=text]{height:42px}
 .lnRow input[data-k=nr]{text-align:center;font-weight:800}
@@ -270,16 +279,23 @@ details.card[open] summary::after{content:" –"}
     <div id="lineupForm" hidden>
       <div class="card">
         <h2>Spieler auswählen</h2>
-        <p class="info" style="margin-top:0"><b>Spieler antippen = aufgestellt.</b> Nochmal antippen = wieder raus. Die Liste im Bild sortiert sich automatisch nach Nummer.</p>
-        <div class="lnCount" id="lnCount"></div>
+        <p class="info" style="margin-top:0">1. Oben wählen, was du gerade füllst. 2. <b>Spieler antippen</b> – nochmal antippen = wieder raus. <span class="leg start">Blau</span> = Startelf, <span class="leg bank">Orange</span> = Ersatzbank. Sortiert wird automatisch nach Nummer.</p>
+        <div class="seg big" id="lnPick" style="margin-top:12px">
+          <button type="button" data-v="start">Startelf</button>
+          <button type="button" data-v="bank">Ersatzbank</button>
+        </div>
+        <div class="lnCount" id="lnCount"></div> <div class="lnCount" id="lnCountB"></div>
         <div id="kaderGrid"></div>
         <p class="info" id="kaderInfo" hidden></p>
       </div>
       <div class="card">
-        <h2>Aufgestellt <span id="lnCount2"></span></h2>
+        <h2>Aufgestellt</h2>
         <p class="info" style="margin-top:0">Rückennummer stimmt heute nicht? Einfach ins Nummernfeld tippen und ändern.</p>
+        <h3 class="subh">Startelf <span id="lnCount2"></span></h3>
         <div id="lineup"></div>
-        <label class="lbl" for="lnNewName">Spieler, der nicht im Kader steht</label>
+        <h3 class="subh bank">Ersatzbank <span id="lnCount3"></span></h3>
+        <div id="bench"></div>
+        <label class="lbl" for="lnNewName" style="margin-top:16px">Spieler, der nicht im Kader steht – kommt in: <b id="lnNewTarget">Startelf</b></label>
         <div class="lnAddRow">
           <input type="text" inputmode="numeric" maxlength="3" id="lnNewNr" placeholder="Nr" aria-label="Rückennummer">
           <input type="text" id="lnNewName" placeholder="Vor- und Nachname">
@@ -293,6 +309,7 @@ details.card[open] summary::after{content:" –"}
           <div><label class="lbl" for="aTitle">Titel</label><input type="text" id="aTitle" placeholder="STARTAUFSTELLUNG"></div>
           <div><label class="lbl" for="aFooter">Schlusszeile</label><input type="text" id="aFooter" placeholder="Auf geht's SVA"></div>
         </div>
+        <label class="lbl" for="bTitle">Überschrift Ersatzbank</label><input type="text" id="bTitle" placeholder="ERSATZBANK">
       </details>
     </div>
 
@@ -495,7 +512,7 @@ const S = Object.assign({
   mode:'post', ownId:ownList[0].id, oppId:'', heim:true, nameOwn:'', nameOpp:'',
   date:today, time:'14:30', ort:'', title:'SPIELTAG',
   rTitle:'ERGEBNISSE', rSub:fmtDate(today), games:null,
-  aTitle:'STARTAUFSTELLUNG', lineups:{},
+  aTitle:'STARTAUFSTELLUNG', bTitle:'ERSATZBANK', lnPick:'start', lineups:{},
   dark:0.55, diag:true
 }, LS.get(KEY_STATE, {}));
 if (!['post','story','ergebnis','aufstellung'].includes(S.mode)) S.mode = 'post';
@@ -806,31 +823,62 @@ function drawLineup(H){
   // Spielerliste: Nummer rechtsbündig | Strich | Name linksbündig – als Block mittig
   const L = getLineup();
   let rows = sortRows(L.rows.filter(r => (r.nr || '').trim() || (r.name || '').trim()));   // im Bild immer nach Nummer
+  const bench = sortRows((L.bench || []).filter(r => keyOf(r.name)));
   const demo = !rows.length;
   if (demo) rows = emptyRows(11).map(() => ({ nr:'00', name:'Spielername' }));
+  const hasBench = bench.length > 0;
   const n = rows.length;
-  const NS = 50, MS = 44, maxName = 560;
+  // mit Ersatzbank rückt die Startelf etwas zusammen
+  const NS = hasBench ? 44 : 50, MS = hasBench ? 39 : 44, maxName = 560;
   setFont(NS, 800); if (hasLS) ctx.letterSpacing = '0px';
-  const numW = Math.max(56, ...rows.map(r => ctx.measureText(r.nr || '').width));
+  const numW = Math.max(hasBench ? 50 : 56, ...rows.map(r => ctx.measureText(r.nr || '').width));
   setFont(MS, 400); if (hasLS) ctx.letterSpacing = '1.5px';
   const nameW = Math.min(maxName, Math.max(...rows.map(r => ctx.measureText(r.name || '').width)));
   if (hasLS) ctx.letterSpacing = '0px';
-  const g1 = 32, g2 = 36, blockW = numW + g1 + 3 + g2 + nameW;
+  const g1 = hasBench ? 28 : 32, g2 = hasBench ? 32 : 36, blockW = numW + g1 + 3 + g2 + nameW;
   const x0 = (W - blockW) / 2, xBar = x0 + numW + g1, xName = xBar + 3 + g2;
-  const top = 560, bottom = 1560, step = Math.min(96, (bottom - top) / Math.max(1, n));
+  const top = hasBench ? 535 : 560, bottom = hasBench ? 1285 : 1560;
+  const step = Math.min(hasBench ? 76 : 96, (bottom - top) / Math.max(1, n));
   let y = (top + bottom) / 2 - step * (n - 1) / 2;
-  const a = demo ? 0.35 : 1;
+  const a = demo ? 0.35 : 1, barH = Math.round(NS * 0.92);
   rows.forEach(r => {
     txt(r.nr || '', x0 + numW, y, { size:NS, weight:800, align:'right', sh:0, alpha:a });
-    ctx.save(); ctx.globalAlpha = 0.85 * a; ctx.fillStyle = '#fff'; ctx.fillRect(xBar, y - 23, 3, 46); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.85 * a; ctx.fillStyle = '#fff'; ctx.fillRect(xBar, y - barH / 2, 3, barH); ctx.restore();
     txt(r.name || '', xName, y, { size:MS, weight:400, align:'left', sp:1.5, maxW:maxName, sh:0, alpha:a });
     y += step;
   });
 
+  // Ersatzbank: Überschrift mit Linien, darunter 1–2 Spalten "Nr | Name"
+  if (hasBench){
+    const hy = 1362, bt = (S.bTitle || 'ERSATZBANK').toUpperCase();
+    setFont(26, 800); if (hasLS) ctx.letterSpacing = '9px';
+    const hw = Math.min(W - 300, ctx.measureText(bt).width);
+    if (hasLS) ctx.letterSpacing = '0px';
+    txt(bt, W / 2, hy, { size:26, weight:800, sp:9, maxW:W - 300, sh:0, alpha:0.9 });
+    ctx.save(); ctx.globalAlpha = 0.7; ctx.fillStyle = '#fff';
+    ctx.fillRect(W / 2 - hw / 2 - 28 - 70, hy - 1, 70, 2); ctx.fillRect(W / 2 + hw / 2 + 28, hy - 1, 70, 2);
+    ctx.restore();
+    const BNS = 30, BMS = 31, cols = bench.length > 3 ? 2 : 1, perCol = Math.ceil(bench.length / cols);
+    setFont(BNS, 800); if (hasLS) ctx.letterSpacing = '0px';
+    const bNumW = Math.max(36, ...bench.map(r => ctx.measureText(r.nr || '').width));
+    setFont(BMS, 400); if (hasLS) ctx.letterSpacing = '1px';
+    const bNameW = Math.min(cols > 1 ? 300 : 520, Math.max(...bench.map(r => ctx.measureText(r.name || '').width)));
+    if (hasLS) ctx.letterSpacing = '0px';
+    const colW = bNumW + 18 + 2 + 20 + bNameW, gapC = 70;
+    const bx0 = (W - (cols * colW + (cols - 1) * gapC)) / 2;
+    const bTop = 1422, bStep = perCol > 1 ? Math.min(50, (1625 - bTop) / (perCol - 1)) : 0;
+    bench.forEach((r, i) => {
+      const c = Math.floor(i / perCol), yy = bTop + (i % perCol) * bStep, x = bx0 + c * (colW + gapC);
+      txt(r.nr || '', x + bNumW, yy, { size:BNS, weight:800, align:'right', sh:0, alpha:0.92 });
+      ctx.save(); ctx.globalAlpha = 0.7; ctx.fillStyle = '#fff'; ctx.fillRect(x + bNumW + 18, yy - 14, 2, 28); ctx.restore();
+      txt(r.name || '', x + bNumW + 40, yy, { size:BMS, weight:400, align:'left', sp:1, maxW:bNameW, sh:0, alpha:0.92 });
+    });
+  }
+
   // Schlusszeile in Pinselschrift mit Linien links und rechts
   const foot = L.footer || '';
   if (foot){
-    const fy = 1690, FS = 66, SCRIPT = '"Kaushan Script", "Brush Script MT", cursive';
+    const fy = hasBench ? 1728 : 1690, FS = 66, SCRIPT = '"Kaushan Script", "Brush Script MT", cursive';
     setFont(FS, 400, SCRIPT); if (hasLS) ctx.letterSpacing = '0px';
     const tw = Math.min(W - 360, ctx.measureText(foot).width);
     txt(foot, W / 2, fy, { size:FS, weight:400, font:SCRIPT, maxW:W - 360, sh:0, vh:0.62 });
@@ -957,7 +1005,7 @@ $('opp').addEventListener('change', e => {
   if (!S.heim) autoOrt();
   changed();
 });
-[['nameOwn','nameOwn'],['nameOpp','nameOpp'],['date','date'],['time','time'],['ort','ort'],['title','title'],['rTitle','rTitle'],['rSub','rSub'],['aTitle','aTitle']]
+[['nameOwn','nameOwn'],['nameOpp','nameOpp'],['date','date'],['time','time'],['ort','ort'],['title','title'],['rTitle','rTitle'],['rSub','rSub'],['aTitle','aTitle'],['bTitle','bTitle']]
   .forEach(([id, k]) => {
     const el = $(id); el.value = S[k] || '';
     el.addEventListener('input', () => { S[k] = el.value; changed(); });
@@ -1032,73 +1080,99 @@ function getLineup(){
     L = S.lineups[S.lnOwnId] = { rows:(VORAUSWAHL[S.lnOwnId] || []).map(([nr, name]) => ({ nr, name })), footer:"Auf geht's " + kurz };
   }
   L.rows = L.rows.filter(r => keyOf(r.name));   // leere Zeilen aus älteren Versionen entfernen
+  L.bench = (Array.isArray(L.bench) ? L.bench : []).filter(r => keyOf(r.name));
   return L;
 }
+const MAX_BANK = 9;
+const GRUPPE = { start:{ key:'rows', max:MAX_SPIELER, name:'Startelf' }, bank:{ key:'bench', max:MAX_BANK, name:'Ersatzbank' } };
+const pickOf = () => S.lnPick === 'bank' ? 'bank' : 'start';
 const POS_GRUPPEN = [['Torwart', /^tor/i], ['Abwehr', /^abw/i], ['Mittelfeld', /^mittel/i], ['Sturm', /^(sturm|angriff)/i]];
+function listHtml(arr, g, leer){
+  return arr.length ? arr.map((r, i) =>
+    '<div class="lnRow" data-g="' + g + '" data-i="' + i + '">' +
+      '<input type="text" inputmode="numeric" maxlength="3" data-k="nr" placeholder="–" value="' + esc(r.nr) + '" aria-label="Rückennummer ' + esc(r.name) + '">' +
+      '<span class="lnName">' + esc(r.name) + '</span>' +
+      '<button type="button" class="btn small x" data-act="del" aria-label="' + esc(r.name) + ' entfernen">✕</button>' +
+    '</div>').join('') : '<p class="info" style="margin-top:4px">' + leer + '</p>';
+}
 function renderLineup(){
   const L = getLineup(), kader = kaderOf(S.lnOwnId);
-  const sel = new Set(L.rows.map(r => keyOf(r.name)));
-  const heuteNr = new Map(L.rows.map(r => [keyOf(r.name), r.nr]));   // ausgewählte Spieler zeigen die heutige Nummer
+  const inStart = new Set(L.rows.map(r => keyOf(r.name))), inBank = new Set(L.bench.map(r => keyOf(r.name)));
+  // ausgewählte Spieler zeigen auf dem Knopf die heutige Nummer
+  const heuteNr = new Map(L.rows.concat(L.bench).map(r => [keyOf(r.name), r.nr]));
   const groups = POS_GRUPPEN.map(([t, re]) => ({ t, list:kader.filter(p => re.test(p.pos || '')) }));
   const rest = kader.filter(p => !POS_GRUPPEN.some(([, re]) => re.test(p.pos || '')));
   if (rest.length) groups.push({ t:'Weitere', list:rest });
   $('kaderGrid').innerHTML = groups.filter(g => g.list.length).map(g =>
-    '<div class="kGroup"><h3>' + g.t + '</h3><div class="kGrid">' + g.list.map(p =>
-      '<button type="button" class="kChip' + (sel.has(keyOf(p.name)) ? ' on' : '') + '" data-name="' + esc(p.name) + '" data-nr="' + esc(p.nr) + '" aria-pressed="' + sel.has(keyOf(p.name)) + '">' +
-      '<span class="nr">' + esc((sel.has(keyOf(p.name)) ? heuteNr.get(keyOf(p.name)) : p.nr) || '–') + '</span><span>' + esc(p.name) + '</span></button>').join('') + '</div></div>').join('');
+    '<div class="kGroup"><h3>' + g.t + '</h3><div class="kGrid">' + g.list.map(p => {
+      const k = keyOf(p.name), st = inStart.has(k) ? ' on' : inBank.has(k) ? ' bank' : '';
+      return '<button type="button" class="kChip' + st + '" data-name="' + esc(p.name) + '" data-nr="' + esc(p.nr) + '" aria-pressed="' + !!st + '">' +
+        '<span class="nr">' + esc((st ? heuteNr.get(k) : p.nr) || '–') + '</span><span>' + esc(p.name) + '</span></button>';
+    }).join('') + '</div></div>').join('');
   $('kaderInfo').hidden = kader.length > 0;
   $('kaderInfo').textContent = 'Für diese Mannschaft ist noch kein Kader hinterlegt – Spieler unten über „Hinzufügen“ eintragen.';
-  sortRows(L.rows);
-  const n = L.rows.length;
-  $('lnCount').textContent = n + ' von 11 ausgewählt' + (n > 11 ? ' – mehr als 11' : n === 11 ? ' ✓' : '');
+  sortRows(L.rows); sortRows(L.bench);
+  const n = L.rows.length, nb = L.bench.length;
+  $('lnCount').textContent = 'Startelf: ' + n + ' von 11' + (n > 11 ? ' – mehr als 11' : n === 11 ? ' ✓' : '');
   $('lnCount').className = 'lnCount' + (n === 11 ? ' ok' : n > 11 ? ' warn' : '');
-  $('lnCount2').textContent = '(' + n + ')';
-  $('lineup').innerHTML = n ? L.rows.map((r, i) =>
-    '<div class="lnRow" data-i="' + i + '">' +
-      '<input type="text" inputmode="numeric" maxlength="3" data-k="nr" placeholder="–" value="' + esc(r.nr) + '" aria-label="Rückennummer ' + esc(r.name) + '">' +
-      '<span class="lnName">' + esc(r.name) + '</span>' +
-      '<button type="button" class="btn small x" data-act="del" aria-label="' + esc(r.name) + ' entfernen">✕</button>' +
-    '</div>').join('') : '<p class="info" style="margin-top:4px">Noch niemand aufgestellt – oben Spieler antippen.</p>';
+  $('lnCountB').textContent = 'Ersatzbank: ' + nb;
+  $('lnCountB').className = 'lnCount' + (nb ? ' bank' : '');
+  $('lnCount2').textContent = '(' + n + ')'; $('lnCount3').textContent = '(' + nb + ')';
+  $('lineup').innerHTML = listHtml(L.rows, 'start', 'Noch niemand in der Startelf – oben „Startelf“ wählen und Spieler antippen.');
+  $('bench').innerHTML = listHtml(L.bench, 'bank', 'Keine Ersatzspieler – oben „Ersatzbank“ wählen und Spieler antippen (optional).');
+  segMark($('lnPick'), pickOf());
+  $('lnNewTarget').textContent = GRUPPE[pickOf()].name;
   $('aFooter').value = L.footer || '';
 }
+// Spieler in die gerade gewählte Gruppe (Startelf/Ersatzbank) setzen; steht er in der anderen, wird er verschoben
 function addPlayer(name, nr){
-  const L = getLineup();
-  if (L.rows.length >= MAX_SPIELER){ toast('Maximal ' + MAX_SPIELER + ' Spieler möglich.'); return false; }
-  L.rows.push({ nr:nr || '', name }); return true;
+  const L = getLineup(), g = GRUPPE[pickOf()], other = GRUPPE[pickOf() === 'bank' ? 'start' : 'bank'];
+  if (L[g.key].length >= g.max){ toast('In der ' + g.name + ' sind maximal ' + g.max + ' Spieler möglich.'); return false; }
+  const j = L[other.key].findIndex(r => keyOf(r.name) === keyOf(name));
+  if (j >= 0){ nr = L[other.key][j].nr; L[other.key].splice(j, 1); }
+  L[g.key].push({ nr:nr || '', name }); return true;
 }
-// Kader-Knopf antippen: aufstellen bzw. wieder entfernen
+$('lnPick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.lnPick = b.dataset.v; renderLineup(); saveState();
+});
+// Kader-Knopf antippen: in gewählte Gruppe setzen bzw. wieder entfernen
 $('kaderGrid').addEventListener('click', e => {
   const b = e.target.closest('.kChip'); if (!b) return;
-  const L = getLineup(), k = keyOf(b.dataset.name), i = L.rows.findIndex(r => keyOf(r.name) === k);
-  if (i >= 0) L.rows.splice(i, 1); else if (!addPlayer(b.dataset.name, b.dataset.nr)) return;
+  const L = getLineup(), key = GRUPPE[pickOf()].key, k = keyOf(b.dataset.name), i = L[key].findIndex(r => keyOf(r.name) === k);
+  if (i >= 0) L[key].splice(i, 1); else if (!addPlayer(b.dataset.name, b.dataset.nr)) return;
   renderLineup(); changed();
 });
-// Nummer ändern: beim Tippen nur übernehmen, beim Verlassen des Feldes neu sortieren
-$('lineup').addEventListener('input', e => {
-  const el = e.target, row = el.closest('.lnRow'); if (!row || el.dataset.k !== 'nr') return;
-  const r = getLineup().rows[+row.dataset.i];
-  r.nr = el.value.replace(/[^0-9]/g, '').slice(0, 3); if (el.value !== r.nr) el.value = r.nr;
-  changed();
-});
-$('lineup').addEventListener('change', e => { if (e.target.dataset.k === 'nr') renderLineup(); });
-$('lineup').addEventListener('click', e => {
-  if (!e.target.closest('[data-act="del"]')) return;
-  getLineup().rows.splice(+e.target.closest('.lnRow').dataset.i, 1);
-  renderLineup(); changed();
+// Nummer ändern: beim Tippen nur übernehmen, beim Verlassen des Feldes neu sortieren; ✕ entfernt
+['lineup', 'bench'].forEach(id => {
+  $(id).addEventListener('input', e => {
+    const el = e.target, row = el.closest('.lnRow'); if (!row || el.dataset.k !== 'nr') return;
+    const r = getLineup()[GRUPPE[row.dataset.g].key][+row.dataset.i];
+    r.nr = el.value.replace(/[^0-9]/g, '').slice(0, 3); if (el.value !== r.nr) el.value = r.nr;
+    changed();
+  });
+  $(id).addEventListener('change', e => { if (e.target.dataset.k === 'nr') renderLineup(); });
+  $(id).addEventListener('click', e => {
+    if (!e.target.closest('[data-act="del"]')) return;
+    const row = e.target.closest('.lnRow');
+    getLineup()[GRUPPE[row.dataset.g].key].splice(+row.dataset.i, 1);
+    renderLineup(); changed();
+  });
 });
 function addNew(){
   const name = $('lnNewName').value.trim(), nr = $('lnNewNr').value.replace(/[^0-9]/g, '').slice(0, 3);
   if (!name){ toast('Bitte den Namen eintragen.'); $('lnNewName').focus(); return; }
-  if (getLineup().rows.some(r => keyOf(r.name) === keyOf(name))){ toast(name + ' ist schon aufgestellt.'); return; }
+  const L = getLineup();
+  if (L[GRUPPE[pickOf()].key].some(r => keyOf(r.name) === keyOf(name))){ toast(name + ' steht schon in der ' + GRUPPE[pickOf()].name + '.'); return; }
   if (!addPlayer(name, nr)) return;
   $('lnNewName').value = ''; $('lnNewNr').value = '';
-  renderLineup(); changed(); toast(name + ' hinzugefügt.');
+  renderLineup(); changed(); toast(name + ' zur ' + GRUPPE[pickOf()].name + ' hinzugefügt.');
 }
 $('lnNewAdd').addEventListener('click', addNew);
 $('lnNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addNew(); });
 $('lnClear').addEventListener('click', () => {
-  if (!confirm('Alle Spieler aus der Aufstellung entfernen?')) return;
-  getLineup().rows = []; renderLineup(); changed();
+  if (!confirm('Alle Spieler aus Startelf und Ersatzbank entfernen?')) return;
+  const L = getLineup(); L.rows = []; L.bench = []; renderLineup(); changed();
 });
 $('aFooter').addEventListener('input', e => { getLineup().footer = e.target.value; changed(); });
 
